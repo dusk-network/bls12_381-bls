@@ -1,101 +1,29 @@
 on: [pull_request]
 
-name: Continuous integration
+name: Dusk CI
 
 jobs:
-  analyze:
+  code_analysis:
+    name: Code Analysis
+    uses: dusk-network/.github/.github/workflows/code-analysis.yml@main
+    with:
+      clippy_default: false
+      clippy_args: --release --features=rkyv-impl,rkyv/size_16 -- -D warnings
+
+  dusk_analysis:
     name: Dusk Analyzer
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-      - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: --git https://github.com/dusk-network/cargo-dusk-analyzer
-      - uses: actions-rs/cargo@v1
-        with:
-          command: dusk-analyzer
-          args: --manifest-path rust/Cargo.toml
+    uses: dusk-network/.github/.github/workflows/dusk-analysis.yml@main
 
-  check_nightly_no_std:
-    name: Nightly check no_std
-    runs-on: ubuntu-latest
+  check_no_std:
+    name: check no_std
+    runs-on: core
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          target: thumbv6m-none-eabi
-      - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --manifest-path rust/bls12_381-sign/Cargo.toml --no-default-features --target thumbv6m-none-eabi
-
-  test_nightly:
-    name: Nightly tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-      - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --manifest-path rust/Cargo.toml --workspace --release
-
-  fmt:
-    name: Rustfmt
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-      - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --manifest-path rust/Cargo.toml --all -- --check
-
-  test:
-    strategy:
-      matrix:
-        go-version: [ 1.17.x ]
-        os: [ ubuntu-latest, macos-latest ]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Install Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: ${{ matrix.go-version }}
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Change toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-      - name: Rustfmt
-        run: rustup component add rustfmt
-      - name: Generate Rust FFI and IPC binaries
-        run: make lib
-      - name: Upload binaries for platform
-        uses: actions/upload-artifact@v2
-        with:
-          name: bls12_381_sign_${{ matrix.os }}
-          path: |
-                go/cgo/bls/libdusk_bls12_381_sign_ffi_${{ matrix.os }}.a
-      - name: Build Go Stuff
-        run: make build
-      - name: Test Go Stuff
-        run: make test
-      - name: Run all bls12-381 benches for Cgo, IPC
-        run: make bench
+      - uses: actions/checkout@v4
+      - uses: dsherret/rust-toolchain-file@v1
+      - run: cargo check --no-default-features --target thumbv6m-none-eabi
+        
+  test_std:
+    name: Nightly std tests
+    uses: dusk-network/.github/.github/workflows/run-tests.yml@main
+    with:
+      test_flags: --features=rkyv-impl,rkyv/size_16
