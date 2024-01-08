@@ -2,7 +2,16 @@
 name = "bls12_381-bls"
 version = "0.1.0"
 edition = "2021"
+readme = "README.md"
+repository = "https://github.com/dusk-network/bls12_381-bls"
 description = "Implementation of BLS signatures using the BLS12-381 curve"
+keywords = ["cryptography", "bls", "bls12_381", "signatures"]
+categories =["algorithms", "cryptography", "mathematics"]
+exclude = [
+    ".gitignore",
+    "Cargo.lock",
+    ".github/"
+]
 license = "MPL-2.0"
 
 [dependencies]
