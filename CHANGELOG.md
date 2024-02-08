@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Change the implementation for hashing a slice of bytes into a BlsScalar to `BlsScalar::hash_to_scalar` [#3]
+
 ## [0.1.0] - 2024-01-08
 
 ### Added
@@ -14,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-bls12_381-sign](https://github.com/dusk-network/bls12_381-sign/) at version `0.6.0` under the new name: `bls12_381-bls` and without the go related code.
 
 <!-- ISSUES -->
+[#3]: https://github.com/dusk-network/bls12_381-bls/issues/3
 
 <!-- VERSIONS -->
 [Unreleased]: https://github.com/dusk-network/bls12_381-bls/compare/v0.1.0...HEAD
