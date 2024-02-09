@@ -15,6 +15,8 @@ pub enum Error {
     BytesError(DuskBytesError),
     /// Cryptographic invalidity
     InvalidSignature,
+    /// Invalid Point
+    InvalidPoint,
 }
 
 impl From<DuskBytesError> for Error {
@@ -29,6 +31,9 @@ impl fmt::Display for Error {
             Self::BytesError(err) => write!(f, "{:?}", err),
             Self::InvalidSignature => {
                 write!(f, "Invalid Signature")
+            }
+            Self::InvalidPoint => {
+                write!(f, "Invalid Point")
             }
         }
     }

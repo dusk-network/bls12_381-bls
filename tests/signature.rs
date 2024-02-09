@@ -4,7 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use bls12_381_bls::{PublicKey, SecretKey, APK};
+use bls12_381_bls::{Error, PublicKey, SecretKey, APK};
+use dusk_bls12_381::BlsScalar;
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
 
@@ -176,6 +177,17 @@ fn sign_verify_aggregated_incorrect_apk() {
     // Verification with the wrong APK should fail.
     let apk = APK::from(&pk);
     assert!(apk.verify(&agg_sig, &msg).is_err());
+}
+
+#[test]
+fn sign_verify_identity_fails() {
+    let rng = &mut StdRng::seed_from_u64(0xbeef);
+    let msg = random_message(rng);
+    let sk = SecretKey::from(BlsScalar::zero());
+    let pk = PublicKey::from(&sk);
+    let sig = sk.sign_vulnerable(&msg);
+
+    assert_eq!(pk.verify(&sig, &msg).unwrap_err(), Error::InvalidPoint);
 }
 
 fn random_message(rng: &mut StdRng) -> [u8; 100] {
