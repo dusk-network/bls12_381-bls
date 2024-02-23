@@ -11,13 +11,14 @@ use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{Error as DuskBytesError, Serializable};
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
+use zeroize::Zeroize;
 
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};
 
 /// A BLS secret key, holding a BLS12-381 scalar inside.
 /// Can be used for signing messages.
-#[derive(Default, Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Default, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
@@ -90,5 +91,55 @@ impl SecretKey {
         let t = h1(pk);
         sig.0 = (sig.0 * t).into();
         sig
+    }
+
+    /// Erase the content of the [`SecretKey`] from memory to prevent leaking
+    /// sensitive data after the [`SecretKey`] goes out of scope.
+    pub fn zeroize(&mut self) {
+        self.0 .0.zeroize();
+    }
+}
+
+impl Zeroize for SecretKey {
+    fn zeroize(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl Drop for SecretKey {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn zeroize() {
+        let sk = SecretKey::from(BlsScalar::from(42));
+        let ptr = sk.as_ref().0.as_ptr();
+        drop(sk);
+
+        // we would expect that the memory is erased during `drop` but it is
+        // still there
+        unsafe {
+            assert_eq!(
+                core::slice::from_raw_parts(ptr, 4),
+                BlsScalar::from(42).0
+            );
+        };
+
+        // let's try again and call zeroize explicitly:
+        let mut sk = SecretKey::from(BlsScalar::from(42));
+        let ptr = sk.as_ref().0.as_ptr();
+        sk.zeroize();
+        drop(sk);
+
+        // now the check passes
+        unsafe {
+            assert_eq!(core::slice::from_raw_parts(ptr, 4), [0; 4]);
+        };
     }
 }

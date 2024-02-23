@@ -22,6 +22,7 @@ rkyv = { version = "0.7", optional = true, default-features = false }
 bytecheck = { version = "0.6", optional = true, default-features = false }
 ff = { version = "0.13", default-features = false }
 rayon = { version = "1.8", optional = true }
+zeroize = "1.7.0"
 
 [dev-dependencies]
 rand = { version = "0.8", default-features = false, features = ["std_rng"] }
