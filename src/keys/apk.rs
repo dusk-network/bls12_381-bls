@@ -58,17 +58,27 @@ impl From<&SecretKey> for APK {
 
 impl APK {
     /// Aggregate a set of [`PublicKey`] into the [`APK`].
-    pub fn aggregate(&mut self, pks: &[PublicKey]) {
+    pub fn aggregate(&mut self, pks: &[PublicKey]) -> Result<(), Error> {
         #[cfg(feature = "parallel")]
         let iter = pks.par_iter();
 
         #[cfg(not(feature = "parallel"))]
         let iter = pks.iter();
 
+        let mut valid = true;
         let sum: G2Projective = iter
-            .map(|pk| dusk_bls12_381::G2Projective::from(pk.pk_t()))
+            .map(|pk| {
+                if !pk.is_valid() {
+                    valid = false;
+                }
+                G2Projective::from(pk.pk_t())
+            })
             .sum();
+        if !valid {
+            return Err(Error::InvalidPoint);
+        }
         (self.0).0 = ((self.0).0 + sum).into();
+        Ok(())
     }
 
     /// Verify a [`Signature`].

@@ -124,7 +124,8 @@ fn sign_verify_aggregated() {
         agg_sig = agg_sig.aggregate(&[sig]);
         pks.push(pk)
     }
-    apk.aggregate(&pks[..]);
+    apk.aggregate(&pks[..])
+        .expect("public keys should be valid");
 
     assert!(apk.verify(&agg_sig, &msg).is_ok());
 }
@@ -146,7 +147,7 @@ fn sign_verify_aggregated_incorrect_message() {
         let pk = PublicKey::from(&sk);
         let sig = sk.sign(&pk, &msg);
         agg_sig = agg_sig.aggregate(&[sig]);
-        apk.aggregate(&[pk]);
+        apk.aggregate(&[pk]).expect("public keys should be valid");
     }
 
     // Verification should fail with a different message.
@@ -171,7 +172,7 @@ fn sign_verify_aggregated_incorrect_apk() {
         let pk = PublicKey::from(&sk);
         let sig = sk.sign(&pk, &msg);
         agg_sig = agg_sig.aggregate(&[sig]);
-        apk.aggregate(&[pk]);
+        apk.aggregate(&[pk]).expect("public keys should be valid");
     }
 
     // Verification with the wrong APK should fail.
