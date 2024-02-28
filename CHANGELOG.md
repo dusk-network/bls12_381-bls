@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2024-02-28
+
 ### Changed
 
 - Change the implementation for hashing a slice of bytes into a BlsScalar to `BlsScalar::hash_to_scalar` [#3]
@@ -21,5 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#3]: https://github.com/dusk-network/bls12_381-bls/issues/3
 
 <!-- VERSIONS -->
-[Unreleased]: https://github.com/dusk-network/bls12_381-bls/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/dusk-network/bls12_381-bls/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/dusk-network/bls12_381-bls/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/dusk-network/bls12_381-bls/releases/tag/v0.1.0
