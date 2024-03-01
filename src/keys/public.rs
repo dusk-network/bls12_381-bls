@@ -52,6 +52,9 @@ impl PublicKey {
     /// Verify a [`Signature`] by comparing the results of the two pairing
     /// operations: e(sig, g_2) == e(Hₒ(m), pk).
     pub fn verify(&self, sig: &Signature, msg: &[u8]) -> Result<(), Error> {
+        if !self.is_valid() || !sig.is_valid() {
+            return Err(Error::InvalidPoint);
+        }
         let h0m = h0(msg);
         let p1 = dusk_bls12_381::pairing(&sig.0, &G2Affine::generator());
         let p2 = dusk_bls12_381::pairing(&h0m, &self.0);
