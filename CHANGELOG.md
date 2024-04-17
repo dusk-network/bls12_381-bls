@@ -7,17 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.0] - 2024-02-28
-
 ### Changed
 
-- Change the implementation for hashing a slice of bytes into a BlsScalar to `BlsScalar::hash_to_scalar` [#3]
 - Check validity of `PublicKey` and `Signature` points in signature verification [#7]
 
 ### Added
 
 - Add `is_valid` check for `PublicKey` [#7]
 - Add `Error::InvalidPoint` variant for invalid `PublicKey` and `Signature` points [#7]
+- Add `Zeroize` trait for `SecretKey` [#5]
+
+### Removed
+
+- Remove `Copy` trait for `SecretKey` [#5]
+
+## [0.2.0] - 2024-02-28
+
+### Changed
+
+- Change the implementation for hashing a slice of bytes into a BlsScalar to `BlsScalar::hash_to_scalar` [#3]
 
 ## [0.1.0] - 2024-01-08
 
@@ -27,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- ISSUES -->
 [#7]: https://github.com/dusk-network/bls12_381-bls/issues/7
+[#5]: https://github.com/dusk-network/bls12_381-bls/issues/5
 [#3]: https://github.com/dusk-network/bls12_381-bls/issues/3
 
 <!-- VERSIONS -->
