@@ -15,13 +15,14 @@ exclude = [
 license = "MPL-2.0"
 
 [dependencies]
-dusk-bls12_381 = { version = "0.13", default-features = false, features = ["alloc", "pairings"] }
+dusk-bls12_381 = { version = "0.13", default-features = false, features = ["alloc", "pairings", "zeroize"] }
 dusk-bytes = "0.1"
 rand_core = { version = "0.6", default-features = false }
 rkyv = { version = "0.7", optional = true, default-features = false }
 bytecheck = { version = "0.6", optional = true, default-features = false }
 ff = { version = "0.13", default-features = false }
 rayon = { version = "1.8", optional = true }
+zeroize = { version = "1", features = ["zeroize_derive"] }
 
 [dev-dependencies]
 rand = { version = "0.8", default-features = false, features = ["std_rng"] }

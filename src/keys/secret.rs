@@ -11,13 +11,14 @@ use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{Error as DuskBytesError, Serializable};
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
+use zeroize::Zeroize;
 
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};
 
 /// A BLS secret key, holding a BLS12-381 scalar inside.
 /// Can be used for signing messages.
-#[derive(Default, Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Default, Clone, Debug, Eq, PartialEq, Zeroize)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),

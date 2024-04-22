@@ -13,7 +13,7 @@ use dusk_bytes::Serializable;
 use rkyv::{Archive, Deserialize, Serialize};
 
 /// A BLS signature.
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
+#[derive(Default, Copy, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
