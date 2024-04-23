@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Remove `Copy` trait for `SecretKey` [#5]
+- Remove separate checks for point validity in `PublicKey` and `Signature` in favor of a singular `is_valid`
 
 ## [0.2.0] - 2024-02-28
 
