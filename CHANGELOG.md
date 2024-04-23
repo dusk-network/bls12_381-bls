@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Check validity of `PublicKey` and `Signature` points in signature verification [#7]
+- Check validity of `PublicKey` points when aggregating them [#8]
 
 ### Added
 
@@ -34,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-bls12_381-sign](https://github.com/dusk-network/bls12_381-sign/) at version `0.6.0` under the new name: `bls12_381-bls` and without the go related code.
 
 <!-- ISSUES -->
+[#8]: https://github.com/dusk-network/bls12_381-bls/issues/8
 [#7]: https://github.com/dusk-network/bls12_381-bls/issues/7
 [#5]: https://github.com/dusk-network/bls12_381-bls/issues/5
 [#3]: https://github.com/dusk-network/bls12_381-bls/issues/3
