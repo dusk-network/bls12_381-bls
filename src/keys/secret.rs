@@ -18,6 +18,29 @@ use rkyv::{Archive, Deserialize, Serialize};
 
 /// A BLS secret key, holding a BLS12-381 scalar inside.
 /// Can be used for signing messages.
+///
+/// ## Safety
+///
+/// To ensure that no secret information lingers in memory after the variable
+/// goes out of scope, we advice calling `zeroize` before the variable goes out
+/// of scope.
+///
+/// ## Examples
+///
+/// Generate a random `SecretKey`:
+/// ```
+/// use bls12_381_bls::SecretKey;
+/// use rand::rngs::StdRng;
+/// use rand::SeedableRng;
+/// use zeroize::Zeroize;
+///
+/// let mut rng = StdRng::seed_from_u64(12345);
+/// let mut sk = SecretKey::random(&mut rng);
+///
+/// // do something with the sk
+///
+/// sk.zeroize();
+/// ```
 #[derive(Default, Clone, Debug, Eq, PartialEq, Zeroize)]
 #[cfg_attr(
     feature = "rkyv-impl",
