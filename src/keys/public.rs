@@ -97,24 +97,6 @@ impl PublicKey {
         Self(G2Affine::from_slice_unchecked(bytes))
     }
 
-    /// Returns true if the inner point is free of an $h$-torsion component, and
-    /// so it exists within the $q$-order subgroup $\mathbb{G}_2$. This
-    /// should always return true unless an "unchecked" API was used.
-    pub fn is_torsion_free(&self) -> bool {
-        self.0.is_torsion_free().into()
-    }
-
-    /// Returns true if the inner point is on the curve. This should always
-    /// return true unless an "unchecked" API was used.
-    pub fn is_on_curve(&self) -> bool {
-        self.0.is_on_curve().into()
-    }
-
-    /// Returns true if the inner point is the identity (the point at infinity).
-    pub fn is_identity(&self) -> bool {
-        self.0.is_identity().into()
-    }
-
     /// Returns true if the inner point is valid according to certain criteria.
     ///
     /// A [`PublicKey`] is considered valid if its inner point meets the
@@ -124,6 +106,9 @@ impl PublicKey {
     /// 2. It is on the curve.
     /// 3. It is not the identity.
     pub fn is_valid(&self) -> bool {
-        self.is_torsion_free() && self.is_on_curve() && !self.is_identity()
+        let is_identity: bool = self.0.is_identity().into();
+        self.0.is_torsion_free().into()
+            && self.0.is_on_curve().into()
+            && !is_identity
     }
 }
