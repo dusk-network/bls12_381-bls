@@ -64,27 +64,33 @@ impl APK {
     /// The aggregation errors when one of the [`PublicKey`]s is made of the
     /// identity or an otherwise invalid point.
     pub fn aggregate(&mut self, pks: &[PublicKey]) -> Result<(), Error> {
+        #[cfg(not(feature = "parallel"))]
+        let valid_iter = pks.iter();
         #[cfg(feature = "parallel")]
-        let iter = pks.par_iter();
+        let valid_iter = pks.par_iter();
 
         #[cfg(not(feature = "parallel"))]
-        let iter = pks.iter();
+        let pks_valid =
+            valid_iter.fold(true, |acc, next| acc & next.is_valid());
+        #[cfg(feature = "parallel")]
+        let pks_valid = valid_iter
+            .map(PublicKey::is_valid)
+            .reduce(|| true, |acc, next| acc & next);
 
-        let mut is_valid = self.0.is_valid();
-        let sum: G2Projective = iter
-            .map(|pk| {
-                if !pk.is_valid() {
-                    is_valid = false;
-                }
-                G2Projective::from(pk.pk_t())
-            })
-            .sum();
-
-        if !is_valid {
+        if !(self.0.is_valid() & pks_valid) {
             return Err(Error::InvalidPoint);
         }
 
+        #[cfg(not(feature = "parallel"))]
+        let sum_iter = pks.iter();
+        #[cfg(feature = "parallel")]
+        let sum_iter = pks.par_iter();
+
+        let sum: G2Projective =
+            sum_iter.map(|pk| G2Projective::from(pk.pk_t())).sum();
+
         self.0 .0 = (self.0 .0 + sum).into();
+
         Ok(())
     }
 
