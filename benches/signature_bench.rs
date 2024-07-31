@@ -9,24 +9,25 @@
 extern crate test;
 
 mod benches {
-    use bls12_381_bls::{PublicKey, SecretKey, APK};
+    use bls12_381_bls::{MultisigPublicKey, PublicKey, SecretKey};
     use dusk_bytes::Serializable;
-    use rand_core::{OsRng, RngCore};
+    use rand::rngs::OsRng;
+    use rand::RngCore;
     use test::Bencher;
-
-    #[bench]
-    fn bench_sign_vulnerable(b: &mut Bencher) {
-        let sk = SecretKey::random(&mut OsRng);
-        let msg = random_message();
-        b.iter(|| sk.sign_vulnerable(&msg));
-    }
 
     #[bench]
     fn bench_sign(b: &mut Bencher) {
         let sk = SecretKey::random(&mut OsRng);
+        let msg = random_message();
+        b.iter(|| sk.sign(&msg));
+    }
+
+    #[bench]
+    fn bench_multisig_sign(b: &mut Bencher) {
+        let sk = SecretKey::random(&mut OsRng);
         let pk = PublicKey::from(&sk);
         let msg = random_message();
-        b.iter(|| sk.sign(&pk, &msg));
+        b.iter(|| sk.sign_multisig(&pk, &msg));
     }
 
     #[bench]
@@ -34,54 +35,35 @@ mod benches {
         let sk = SecretKey::random(&mut OsRng);
         let pk = PublicKey::from(&sk);
         let msg = random_message();
-        let sig = sk.sign_vulnerable(&msg);
+        let sig = sk.sign(&msg);
         b.iter(|| pk.verify(&sig, &msg));
     }
 
     #[bench]
-    fn bench_aggregate_sig(b: &mut Bencher) {
+    fn bench_multisig_aggregate_sig(b: &mut Bencher) {
         let sk = SecretKey::random(&mut OsRng);
+        let pk = PublicKey::from(&sk);
         let msg = random_message();
-        let sig = sk.sign_vulnerable(&msg);
+        let sig = sk.sign_multisig(&pk, &msg);
         b.iter(|| sig.aggregate(&[sig]));
     }
 
     #[bench]
-    fn bench_aggregate_pk(b: &mut Bencher) {
+    fn bench_multisig_aggregate_pk(b: &mut Bencher) {
         let sk = SecretKey::random(&mut OsRng);
         let pk = PublicKey::from(&sk);
-        let mut apk = APK::from(&pk);
-        b.iter(|| apk.aggregate(&[pk]));
+        b.iter(|| MultisigPublicKey::aggregate(&[pk]));
     }
 
     #[bench]
-    fn bench_aggregate_pk_64_bulk(b: &mut Bencher) {
-        let sk = SecretKey::random(&mut OsRng);
-        let pk = PublicKey::from(&sk);
-        let mut apk = APK::from(&pk);
+    fn bench_multisig_aggregate_pk_64_bulk(b: &mut Bencher) {
         let mut pks = vec![];
         for _ in 0..64 {
             let sk = SecretKey::random(&mut OsRng);
             let pk = PublicKey::from(&sk);
             pks.push(pk)
         }
-        let pks = &pks[..];
-        b.iter(|| apk.aggregate(pks));
-    }
-
-    #[bench]
-    fn bench_aggregate_pk_64_each(b: &mut Bencher) {
-        let sk = SecretKey::random(&mut OsRng);
-        let pk = PublicKey::from(&sk);
-        let mut apk = APK::from(&pk);
-        let mut pks = vec![];
-        for _ in 0..64 {
-            let sk = SecretKey::random(&mut OsRng);
-            let pk = PublicKey::from(&sk);
-            pks.push(pk)
-        }
-        let pks = &pks[..];
-        b.iter(|| pks.iter().for_each(|&p| apk.aggregate(&[p])));
+        b.iter(|| MultisigPublicKey::aggregate(&pks[..]));
     }
 
     fn random_message() -> [u8; 100] {

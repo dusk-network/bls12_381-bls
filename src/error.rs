@@ -17,6 +17,8 @@ pub enum Error {
     InvalidSignature,
     /// Invalid Point
     InvalidPoint,
+    /// Tried to aggregate an empty list of public keys
+    NoKeysProvided,
 }
 
 impl From<DuskBytesError> for Error {
@@ -34,6 +36,9 @@ impl fmt::Display for Error {
             }
             Self::InvalidPoint => {
                 write!(f, "Invalid Point")
+            }
+            Self::NoKeysProvided => {
+                write!(f, "No keys provided")
             }
         }
     }

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `MultisigSignature` struct [#18]
+- Add `Error::NoKeysProvided` variant [#18]
+
+### Changed
+
+- Rename `SecretKey::sign` to `sign_multisig` and change return to `MultisigSignature` [#18]
+- Rename `SecretKey::sign_vulnerable` to `sign` [#18]
+- Rename `APK` to `MultisigPublicKey` [#18]
+- Change `APK::verify` to take a `MultisigSignature` [#18]
+
+### Removed
+
+- Remove `impl From<&PublicKey> for APK` [#18]
+- Remove `impl From<&SecretKey> for APK` [#18]
+
 ## [0.3.1] - 2024-06-27
 
 ### Changed
@@ -48,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-bls12_381-sign](https://github.com/dusk-network/bls12_381-sign/) at version `0.6.0` under the new name: `bls12_381-bls` and without the go related code.
 
 <!-- ISSUES -->
+[#18]: https://github.com/dusk-network/bls12_381-bls/issues/18
 [#8]: https://github.com/dusk-network/bls12_381-bls/issues/8
 [#7]: https://github.com/dusk-network/bls12_381-bls/issues/7
 [#5]: https://github.com/dusk-network/bls12_381-bls/issues/5
