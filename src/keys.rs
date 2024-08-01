@@ -4,6 +4,5 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-pub mod apk;
 pub mod public;
 pub mod secret;

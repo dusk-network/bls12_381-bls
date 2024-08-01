@@ -7,23 +7,31 @@
 #![no_std]
 
 //! Implementation of BLS signatures on the BLS12-381 curve.
-//! Reference paper: https://crypto.stanford.edu/~dabo/pubs/papers/BLSmultisig.html
+//! Reference paper: <https://crypto.stanford.edu/~dabo/pubs/papers/BLSmultisig.html>
 
 mod error;
 mod hash;
 mod keys;
-mod signature;
+mod signatures;
 
 pub use error::Error;
-pub use keys::{apk::APK, public::PublicKey, secret::SecretKey};
-pub use signature::Signature;
+pub use keys::{
+    public::{MultisigPublicKey, PublicKey},
+    secret::SecretKey,
+};
+pub use signatures::{MultisigSignature, Signature};
 
 #[cfg(feature = "rkyv-impl")]
 pub use crate::keys::{
-    apk::{APKResolver, ArchivedAPK},
-    public::{ArchivedPublicKey, PublicKeyResolver},
+    public::{
+        ArchivedMultisigPublicKey, ArchivedPublicKey,
+        MultisigPublicKeyResolver, PublicKeyResolver,
+    },
     secret::{ArchivedSecretKey, SecretKeyResolver},
 };
 
 #[cfg(feature = "rkyv-impl")]
-pub use crate::signature::{ArchivedSignature, SignatureResolver};
+pub use crate::signatures::{
+    ArchivedMultisigSignature, ArchivedSignature, MultisigSignatureResolver,
+    SignatureResolver,
+};

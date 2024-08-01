@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::hash::{h0, h1};
-use crate::{PublicKey, Signature};
+use crate::{MultisigSignature, PublicKey, Signature};
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{Error as DuskBytesError, Serializable};
@@ -94,9 +94,8 @@ impl Serializable<32> for SecretKey {
 }
 
 impl SecretKey {
-    /// Sign a message, producing a [`Signature`].
-    /// The signature produced is vulnerable to a rogue-key attack.
-    pub fn sign_vulnerable(&self, msg: &[u8]) -> Signature {
+    /// Sign a message, using the single-signature scheme.
+    pub fn sign(&self, msg: &[u8]) -> Signature {
         // Hash message
         let h = h0(msg);
 
@@ -105,14 +104,19 @@ impl SecretKey {
         Signature(e.into())
     }
 
-    /// Sign a message in a rogue-key attack resistant way.
-    pub fn sign(&self, pk: &PublicKey, msg: &[u8]) -> Signature {
-        let mut sig = self.sign_vulnerable(msg);
+    /// Sign a message, using the multi-signature scheme.
+    pub fn sign_multisig(
+        &self,
+        pk: &PublicKey,
+        msg: &[u8],
+    ) -> MultisigSignature {
+        let mut sig = self.sign(msg);
 
         // Turn signature into its modified construction,
         // which provides protection against rogue-key attacks.
         let t = h1(pk);
         sig.0 = (sig.0 * t).into();
-        sig
+
+        MultisigSignature(sig.0)
     }
 }
