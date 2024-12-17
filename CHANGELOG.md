@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add serde `Serialize` and `Deserialize` implementations for `PublicKey`, `MultisigPublicKey`, `Signature`,
+`MultisigSignature` and `SecretKey` [#21]
+- Add `serde`, `bs58` and `serde_json` optional dependencies [#21]
+- Add `serde` feature [#21]
+
 ## [0.4.0] - 2024-08-01
 
 ### Added
@@ -67,6 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-bls12_381-sign](https://github.com/dusk-network/bls12_381-sign/) at version `0.6.0` under the new name: `bls12_381-bls` and without the go related code.
 
 <!-- ISSUES -->
+[#21]: https://github.com/dusk-network/bls12_381-bls/issues/21
 [#18]: https://github.com/dusk-network/bls12_381-bls/issues/18
 [#8]: https://github.com/dusk-network/bls12_381-bls/issues/8
 [#7]: https://github.com/dusk-network/bls12_381-bls/issues/7

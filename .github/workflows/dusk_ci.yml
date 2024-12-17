@@ -26,10 +26,10 @@ jobs:
     name: Nightly std tests
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
     with:
-      test_flags: --features=rkyv-impl,rkyv/size_16
+      test_flags: --features=rkyv-impl,rkyv/size_16,serde
 
   test_parallel:
     name: Nightly std tests parallel
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
     with:
-      test_flags: --features=parallel,rkyv-impl,rkyv/size_16
+      test_flags: --features=parallel,rkyv-impl,rkyv/size_16,serde

@@ -21,6 +21,9 @@ pub use keys::{
 };
 pub use signatures::{MultisigSignature, Signature};
 
+#[cfg(feature = "serde")]
+mod serde_support;
+
 #[cfg(feature = "rkyv-impl")]
 pub use crate::keys::{
     public::{
