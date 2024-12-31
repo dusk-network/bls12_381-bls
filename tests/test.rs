@@ -61,9 +61,25 @@ impl Serializable<32> for SecretKey {
 
 impl Drop for SecretKey {
     fn drop(&mut self) {
+        unsafe {
+            println!(
+                "before {:?} {:?}",
+                core::ptr::addr_of!(self),
+                *core::ptr::addr_of!(self)
+            );
+        }
+
         println!("calling zeroize in drop");
         let r = self.zeroize();
         //self.0 = BlsScalar::from(GENERATOR);
+        unsafe {
+            println!(
+                "{:?} {:?}",
+                core::ptr::addr_of!(self),
+                *core::ptr::addr_of!(self)
+            );
+        }
+
         println!("{:?}", self.0);
     }
 }
@@ -78,20 +94,37 @@ fn bls_scalar_42() -> [u64; 4] {
 }
 
 #[test]
+fn f_empty_test() {
+    struct Empty;
+
+    impl Drop for Empty {
+        fn drop(&mut self) {
+            println!("drop {:?}", core::ptr::addr_of!(self));
+        }
+    }
+
+    let empty = Empty;
+    let ptr = core::ptr::addr_of!(empty);
+    drop(empty);
+    println!("after drop {:?}", ptr);
+}
+
+#[test]
 //cargo test zeroize_drop_test -- --show-output
 fn f_zeroize_drop_test() {
     // Let's try again and don't call drop or zeroize
     let ptr;
     {
         let mut sk = SecretKey::from(BlsScalar::from(42));
-        println!("{sk}", sk = sk.0);
-        
-        ptr = &sk as *const SecretKey;
-        
 
-        drop(sk);
+        ptr = &sk as *const SecretKey;
+        sk.zeroize();
+        // drop(sk);
         unsafe {
-            println!("sK = {:?} \n ptr = {:?}", /* sk */ 1, *ptr);
+            println!(
+                "sK = {:?} \n ptr[{:?}] = {:?}",
+                /* sk */ 1, ptr, *ptr
+            );
         }
         println!("exiting scope");
     }
