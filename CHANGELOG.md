@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Serde feature no longer has any std dependence [#3596]
+
 ## [0.5.0] - 2025-02-10
 
 ### Changed
@@ -82,6 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-bls12_381-sign](https://github.com/dusk-network/bls12_381-sign/) at version `0.6.0` under the new name: `bls12_381-bls` and without the go related code.
 
 <!-- ISSUES -->
+[#3596]: https://github.com/dusk-network/rusk/issues/3596
 [#21]: https://github.com/dusk-network/bls12_381-bls/issues/21
 [#18]: https://github.com/dusk-network/bls12_381-bls/issues/18
 [#8]: https://github.com/dusk-network/bls12_381-bls/issues/8
