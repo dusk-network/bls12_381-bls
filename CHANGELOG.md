@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `BadLength` trait implementation to `Error`
+- Add `InvalidChar` trait implementation to `Error`
+
 ### Changed
 
 - Serde feature no longer has any std dependence [#3596]
