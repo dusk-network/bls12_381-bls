@@ -43,3 +43,15 @@ impl fmt::Display for Error {
         }
     }
 }
+
+impl dusk_bytes::BadLength for Error {
+    fn bad_length(found: usize, expected: usize) -> Self {
+        DuskBytesError::bad_length(found, expected).into()
+    }
+}
+
+impl dusk_bytes::InvalidChar for Error {
+    fn invalid_char(ch: char, index: usize) -> Self {
+        DuskBytesError::invalid_char(ch, index).into()
+    }
+}
