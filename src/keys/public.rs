@@ -53,6 +53,9 @@ impl From<&SecretKey> for PublicKey {
 }
 
 impl PublicKey {
+    /// The size of the public key in raw bytes representation
+    pub const RAW_SIZE: usize = G2Affine::RAW_SIZE;
+
     /// Verify a [`Signature`] by comparing the results of the two pairing
     /// operations: e(sig, g_2) == e(Hₒ(m), pk).
     pub fn verify(&self, sig: &Signature, msg: &[u8]) -> Result<(), Error> {
@@ -68,24 +71,30 @@ impl PublicKey {
 
     /// Raw bytes representation
     ///
-    /// The intended usage of this function is for trusted sets of data where
-    /// performance is critical.
+    /// This serialization doesn't guarantee that the public key, when
+    /// deserialized, is a valid point on the elliptic curve. The intended
+    /// usage of this function is for trusted sets of data where performance
+    /// is critical.
     ///
     /// For secure serialization, check `to_bytes`
-    pub fn to_raw_bytes(&self) -> [u8; G2Affine::RAW_SIZE] {
+    pub fn to_raw_bytes(&self) -> [u8; Self::RAW_SIZE] {
         self.0.to_raw_bytes()
     }
 
     /// Create a `PublicKey` from a set of bytes created by
     /// `PublicKey::to_raw_bytes`.
+    /// This doesn't guarantee that the deserialized public key is a valid point
+    /// on the elliptic curve.
     ///
     /// # Safety
     ///
-    /// No check is performed and no constant time is granted. The expected
-    /// usage of this function is for trusted bytes where performance is
-    /// critical.
+    /// The length of the slice needs to be at least `Self::RAW_SIZE`. No check
+    /// is performed and no constant time is granted. The expected usage of this
+    /// function is for trusted bytes where performance is critical.
     ///
-    /// For secure serialization, check `from_bytes`
+    /// For secure serialization, check `from_bytes`.
+    /// After generating the point, you can check `is_valid` to grant its
+    /// security.
     pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Self {
         Self(G2Affine::from_slice_unchecked(bytes))
     }
@@ -199,26 +208,36 @@ impl MultisigPublicKey {
         verify(&self.0, &sig.0, msg)
     }
 
+    /// The size of the multisig public key in raw bytes representation
+    pub const RAW_SIZE: usize = G2Affine::RAW_SIZE;
+
     /// Raw bytes representation
     ///
-    /// The intended usage of this function is for trusted sets of data where
-    /// performance is critical.
+    /// This serialization doesn't guarantee that the public key, when
+    /// deserialized, is a valid point on the elliptic curve. The intended
+    /// usage of this function is for trusted sets of data where performance
+    /// is critical.
     ///
     /// For secure serialization, check `to_bytes`
-    pub fn to_raw_bytes(&self) -> [u8; dusk_bls12_381::G2Affine::RAW_SIZE] {
+    pub fn to_raw_bytes(&self) -> [u8; Self::RAW_SIZE] {
         self.0.to_raw_bytes()
     }
 
     /// Create a `MultisigPublicKey` from a set of bytes created by
     /// `MultisigPublicKey::to_raw_bytes`.
     ///
+    /// This doesn't guarantee that the deserialized public key is a valid point
+    /// on the elliptic curve.
+    ///
     /// # Safety
     ///
-    /// No check is performed and no constant time is granted. The expected
-    /// usage of this function is for trusted bytes where performance is
-    /// critical.
+    /// The length of the slice needs to be at least `Self::RAW_SIZE`. No check
+    /// is performed and no constant time is granted. The expected usage of this
+    /// function is for trusted bytes where performance is critical.
     ///
-    /// For secure serialization, check `from_bytes`
+    /// For secure serialization, check `from_bytes`.
+    /// After generating the point, you can check `is_valid` to grant its
+    /// security.
     pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Self {
         MultisigPublicKey(G2Affine::from_slice_unchecked(bytes))
     }
