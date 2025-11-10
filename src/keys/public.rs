@@ -8,7 +8,7 @@ use crate::hash::{h0, h1};
 use crate::signatures::is_valid as is_valid_sig;
 use crate::{Error, MultisigSignature, SecretKey, Signature};
 
-use dusk_bls12_381::{G1Affine, G2Affine, G2Projective};
+use dusk_bls12_381::{G1Affine, G2Affine, G2Prepared, G2Projective};
 use dusk_bytes::{Error as DuskBytesError, Serializable};
 
 #[cfg(feature = "rkyv-impl")]
@@ -108,10 +108,14 @@ fn verify(key: &G2Affine, sig: &G1Affine, msg: &[u8]) -> Result<(), Error> {
         return Err(Error::InvalidPoint);
     }
     let h0m = h0(msg);
-    let p1 = dusk_bls12_381::pairing(sig, &G2Affine::generator());
-    let p2 = dusk_bls12_381::pairing(&h0m, key);
 
-    if p1.eq(&p2) {
+    let p = dusk_bls12_381::multi_miller_loop(&[
+        (sig, &G2Prepared::from(G2Affine::generator())),
+        (&-h0m, &G2Prepared::from(*key)),
+    ])
+    .final_exponentiation();
+
+    if p.eq(&dusk_bls12_381::Gt::identity()) {
         Ok(())
     } else {
         Err(Error::InvalidSignature)

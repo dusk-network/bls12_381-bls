@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Change verification to use the multi Miller loop [#33]
 - Update rust toolchain to nightly 2024-10-17 (1.84.0)
 
 ## [0.5.1] - 2025-08-08
@@ -97,6 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-bls12_381-sign](https://github.com/dusk-network/bls12_381-sign/) at version `0.6.0` under the new name: `bls12_381-bls` and without the go related code.
 
 <!-- ISSUES -->
+[#33]: https://github.com/dusk-network/bls12_381-bls/issues/33
 [#3596]: https://github.com/dusk-network/rusk/issues/3596
 [#21]: https://github.com/dusk-network/bls12_381-bls/issues/21
 [#18]: https://github.com/dusk-network/bls12_381-bls/issues/18
