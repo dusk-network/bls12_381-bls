@@ -47,6 +47,18 @@ impl Serializable<48> for Signature {
     }
 }
 
+impl PartialOrd for Signature {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Signature {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.to_bytes().cmp(&other.to_bytes())
+    }
+}
+
 pub(crate) fn is_valid(sig: &G1Affine) -> bool {
     let is_identity: bool = sig.is_identity().into();
     sig.is_torsion_free().into() && sig.is_on_curve().into() && !is_identity
@@ -93,5 +105,17 @@ impl Serializable<48> for MultisigSignature {
 
     fn from_bytes(bytes: &[u8; Self::SIZE]) -> Result<Self, Error> {
         Ok(Self(G1Affine::from_bytes(bytes)?))
+    }
+}
+
+impl PartialOrd for MultisigSignature {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for MultisigSignature {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.to_bytes().cmp(&other.to_bytes())
     }
 }

@@ -41,6 +41,40 @@ impl Serializable<96> for PublicKey {
     }
 }
 
+impl PartialOrd for PublicKey {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PublicKey {
+    /// Compare two [`PublicKey`]s for ordering.
+    ///
+    /// This compares the raw memory representation of the underlying G2Affine
+    /// points (first 193 bytes) for maximum performance, while avoiding the 7
+    /// padding bytes at the end of the struct.
+    ///
+    /// # Safety
+    ///
+    /// Uses `unsafe` to create byte slice views of the PublicKey structs. This is safe because we only
+    /// compare the meaningful data (193 bytes) for deterministic ordering.
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        let a = unsafe {
+            core::slice::from_raw_parts(
+                &self.0 as *const G2Affine as *const u8,
+                G2Affine::RAW_SIZE,
+            )
+        };
+        let b = unsafe {
+            core::slice::from_raw_parts(
+                &other.0 as *const G2Affine as *const u8,
+                G2Affine::RAW_SIZE,
+            )
+        };
+        a.cmp(b)
+    }
+}
+
 impl From<&SecretKey> for PublicKey {
     /// Generates a new [`PublicKey`] from a [`SecretKey`].
     /// pk = g_2 * sk
@@ -144,6 +178,40 @@ impl Serializable<96> for MultisigPublicKey {
 
     fn from_bytes(bytes: &[u8; Self::SIZE]) -> Result<Self, Self::Error> {
         Ok(MultisigPublicKey(G2Affine::from_bytes(bytes)?))
+    }
+}
+
+impl PartialOrd for MultisigPublicKey {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for MultisigPublicKey {
+    /// Compare two [`MultisigPublicKey`]s for ordering.
+    ///
+    /// This compares the raw memory representation of the underlying G2Affine
+    /// points (first 193 bytes) for maximum performance, while avoiding the 7
+    /// padding bytes at the end of the struct.
+    ///
+    /// # Safety
+    ///
+    /// Uses `unsafe` to create byte slice views of the MultisigPublicKey structs. This is safe because we only
+    /// compare the meaningful data (193 bytes) for deterministic ordering.
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        let a = unsafe {
+            core::slice::from_raw_parts(
+                &self.0 as *const G2Affine as *const u8,
+                G2Affine::RAW_SIZE,
+            )
+        };
+        let b = unsafe {
+            core::slice::from_raw_parts(
+                &other.0 as *const G2Affine as *const u8,
+                G2Affine::RAW_SIZE,
+            )
+        };
+        a.cmp(b)
     }
 }
 
