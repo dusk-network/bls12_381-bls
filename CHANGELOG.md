@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update rust toolchain to nightly 2024-10-17 (1.84.0)
+
 ## [0.5.1] - 2025-08-08
 
 ### Added
