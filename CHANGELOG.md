@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Update to rust stable version 1.85
+- Update to rust edition 2024
 
 ## [0.5.1] - 2025-08-08
 
