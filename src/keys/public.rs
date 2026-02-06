@@ -87,7 +87,7 @@ impl PublicKey {
     ///
     /// For secure serialization, check `from_bytes`
     pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Self {
-        Self(G2Affine::from_slice_unchecked(bytes))
+        unsafe { Self(G2Affine::from_slice_unchecked(bytes)) }
     }
 
     /// Returns true if the inner point is valid according to certain criteria.
@@ -220,6 +220,6 @@ impl MultisigPublicKey {
     ///
     /// For secure serialization, check `from_bytes`
     pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Self {
-        MultisigPublicKey(G2Affine::from_slice_unchecked(bytes))
+        unsafe { MultisigPublicKey(G2Affine::from_slice_unchecked(bytes)) }
     }
 }
