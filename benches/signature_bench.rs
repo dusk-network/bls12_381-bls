@@ -11,8 +11,8 @@ extern crate test;
 mod benches {
     use bls12_381_bls::{MultisigPublicKey, PublicKey, SecretKey};
     use dusk_bytes::Serializable;
-    use rand::rngs::OsRng;
     use rand::RngCore;
+    use rand::rngs::OsRng;
     use test::Bencher;
 
     #[bench]
