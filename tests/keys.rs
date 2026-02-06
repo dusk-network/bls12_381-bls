@@ -7,8 +7,8 @@
 use bls12_381_bls::{Error, MultisigPublicKey, PublicKey, SecretKey};
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 use zeroize::Zeroize;
 
 #[test]

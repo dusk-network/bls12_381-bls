@@ -9,8 +9,8 @@
 use bls12_381_bls::{
     MultisigPublicKey, MultisigSignature, PublicKey, SecretKey, Signature,
 };
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 use serde::Serialize;
 
 fn assert_canonical_json<T>(
@@ -33,7 +33,7 @@ fn serde_public_key() -> Result<(), Box<dyn std::error::Error>> {
     let pk = PublicKey::from(&SecretKey::random(&mut rng));
     let ser = assert_canonical_json(
         &pk,
-        "\"shUGhHy4u1NiQY8uzHpTDagQJEqYrDJuAfgjDUVK5uBxbNi2D4aeHmCVaLvebvR4SGv5tJqGsg1KLRmeJu9RH2ANVELqvDU4Tr2zVBkTot47d1Gpj7N7UUMB1QF4aY3Vd96\""
+        "\"shUGhHy4u1NiQY8uzHpTDagQJEqYrDJuAfgjDUVK5uBxbNi2D4aeHmCVaLvebvR4SGv5tJqGsg1KLRmeJu9RH2ANVELqvDU4Tr2zVBkTot47d1Gpj7N7UUMB1QF4aY3Vd96\"",
     )?;
     let deser: PublicKey = serde_json::from_str(&ser)?;
     assert_eq!(pk, deser);
@@ -49,7 +49,7 @@ fn serde_multisig_public_key() -> Result<(), Box<dyn std::error::Error>> {
     .unwrap();
     let ser = assert_canonical_json(
         &pk,
-        "\"25kghHWDNorWmBuDUTfXvKseTHzDvDnAN6jSsP44ptZ7C1apiarwVqwJ4quxx3Yax5TicNXTZsauZVwjHbzFyvxZAjGMEGcPAhrvzji5mxaiF445mTep3g9BJFeTbtv9sDR3\""
+        "\"25kghHWDNorWmBuDUTfXvKseTHzDvDnAN6jSsP44ptZ7C1apiarwVqwJ4quxx3Yax5TicNXTZsauZVwjHbzFyvxZAjGMEGcPAhrvzji5mxaiF445mTep3g9BJFeTbtv9sDR3\"",
     )?;
     let deser = serde_json::from_str(&ser)?;
     assert_eq!(pk, deser);
@@ -63,7 +63,7 @@ fn serde_signature() -> Result<(), Box<dyn std::error::Error>> {
     let signature = sk.sign(b"a message");
     let ser = assert_canonical_json(
         &signature,
-        "\"6UxktyK2QmZA6PsB15iTAiwYns3QLBrZmsBJPR1smfp4MNU3CnoqKLRbiUS1h76HW9\""
+        "\"6UxktyK2QmZA6PsB15iTAiwYns3QLBrZmsBJPR1smfp4MNU3CnoqKLRbiUS1h76HW9\"",
     )?;
     let deser = serde_json::from_str(&ser)?;
     assert_eq!(signature, deser);
@@ -78,7 +78,7 @@ fn serde_multisig_signature() -> Result<(), Box<dyn std::error::Error>> {
     let signature = sk.sign_multisig(&pk, b"a message");
     let ser = assert_canonical_json(
         &signature,
-        "\"79PPAVxpdTbHhK81p5oTGkEqb6EVkAkxEb39emBdzffLHwyTnfSbN6AmAiv3SdZMci\""
+        "\"79PPAVxpdTbHhK81p5oTGkEqb6EVkAkxEb39emBdzffLHwyTnfSbN6AmAiv3SdZMci\"",
     )?;
     let deser = serde_json::from_str(&ser)?;
     assert_eq!(signature, deser);
@@ -122,7 +122,7 @@ fn serde_wrong_encoded() {
 #[test]
 fn serde_too_long_encoded() {
     let length_33_enc = "\"yaujE5CNg7SRYuf3Vw7G8QQdM7267QxJtfqGUEjLbxyCC\"";
-    let length_49_enc= "\"RCR6kPYZDuew8ovT9MoxVv7mKRsbygumf2UTjvzs6AJhnukLj3BiFvjaE45Q41tKqdA\"";
+    let length_49_enc = "\"RCR6kPYZDuew8ovT9MoxVv7mKRsbygumf2UTjvzs6AJhnukLj3BiFvjaE45Q41tKqdA\"";
     let length_97_enc = "\"7a5RpCdtr1aaXvaR3AofnEnVRh7kpzyqE8eYJpCBVLKLLpXVeN9UrXGRTZyq2upTVaJT5QnPQwZCGXW1oxrEAzrPvQ4vbWFwiHMJijZMzrPsTjQJFju1H4shrajuqUG4fYFpC\"";
 
     let public_key: Result<PublicKey, _> = serde_json::from_str(&length_97_enc);

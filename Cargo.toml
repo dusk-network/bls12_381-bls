@@ -1,15 +1,17 @@
 [package]
 name = "bls12_381-bls"
-version = "0.5.1"
-edition = "2021"
+version = "0.6.0-rc.0"
+
 readme = "README.md"
 repository = "https://github.com/dusk-network/bls12_381-bls"
 description = "Implementation of BLS signatures using the BLS12-381 curve"
 keywords = ["cryptography", "bls", "bls12_381", "signatures"]
 categories = ["algorithms", "cryptography", "mathematics"]
 exclude = [".gitignore", "Cargo.lock", ".github/"]
+
 license = "MPL-2.0"
 rust-version = "1.85"
+edition = "2024"
 
 [dependencies]
 dusk-bls12_381 = { version = "0.14", default-features = false, features = [
@@ -28,8 +30,13 @@ serde = { version = "1.0", default-features = false, optional = true }
 bs58 = { version = "0.4", default-features = false, optional = true }
 
 [dev-dependencies]
+criterion = "0.5"
 rand = "0.8"
 serde_json = "1.0"
+
+[[bench]]
+name = "signature_bench"
+harness = false
 
 [features]
 rkyv-impl = ["dusk-bls12_381/rkyv-impl", "rkyv", "bytecheck"]
