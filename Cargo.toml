@@ -30,8 +30,13 @@ serde = { version = "1.0", default-features = false, optional = true }
 bs58 = { version = "0.4", default-features = false, optional = true }
 
 [dev-dependencies]
+criterion = "0.5"
 rand = "0.8"
 serde_json = "1.0"
+
+[[bench]]
+name = "signature_bench"
+harness = false
 
 [features]
 rkyv-impl = ["dusk-bls12_381/rkyv-impl", "rkyv", "bytecheck"]
