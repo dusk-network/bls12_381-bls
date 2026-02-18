@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::hash::{h0, h1};
+use crate::hash::{h0, h0_v2_point, h1, h1_v2};
 use crate::{MultisigSignature, PublicKey, Signature};
 
 use dusk_bls12_381::BlsScalar;
@@ -96,8 +96,23 @@ impl Serializable<32> for SecretKey {
 impl SecretKey {
     /// Sign a message, using the single-signature scheme.
     pub fn sign(&self, msg: &[u8]) -> Signature {
+        self.sign_v1(msg)
+    }
+
+    /// Sign a message using the legacy (v1) single-signature scheme.
+    pub fn sign_v1(&self, msg: &[u8]) -> Signature {
         // Hash message
         let h = h0(msg);
+
+        // Multiply point by sk
+        let e = h * self.0;
+        Signature(e.into())
+    }
+
+    /// Sign a message using the v2 single-signature scheme.
+    pub fn sign_v2(&self, msg: &[u8]) -> Signature {
+        // Hash message
+        let h = h0_v2_point(msg);
 
         // Multiply point by sk
         let e = h * self.0;
@@ -110,11 +125,36 @@ impl SecretKey {
         pk: &PublicKey,
         msg: &[u8],
     ) -> MultisigSignature {
-        let mut sig = self.sign(msg);
+        self.sign_multisig_v1(pk, msg)
+    }
+
+    /// Sign a message using the legacy (v1) multi-signature scheme.
+    pub fn sign_multisig_v1(
+        &self,
+        pk: &PublicKey,
+        msg: &[u8],
+    ) -> MultisigSignature {
+        let mut sig = self.sign_v1(msg);
 
         // Turn signature into its modified construction,
         // which provides protection against rogue-key attacks.
         let t = h1(pk);
+        sig.0 = (sig.0 * t).into();
+
+        MultisigSignature(sig.0)
+    }
+
+    /// Sign a message using the v2 multi-signature scheme.
+    pub fn sign_multisig_v2(
+        &self,
+        pk: &PublicKey,
+        msg: &[u8],
+    ) -> MultisigSignature {
+        let mut sig = self.sign_v2(msg);
+
+        // Turn signature into its modified construction,
+        // which provides protection against rogue-key attacks.
+        let t = h1_v2(pk);
         sig.0 = (sig.0 * t).into();
 
         MultisigSignature(sig.0)

@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::hash::{h0, h1};
+use crate::hash::{h0, h0_v2_point, h1_v1, h1_v2};
 use crate::signatures::is_valid as is_valid_sig;
 use crate::{Error, MultisigSignature, SecretKey, Signature};
 
@@ -56,12 +56,34 @@ impl PublicKey {
     /// Verify a [`Signature`] by comparing the results of the two pairing
     /// operations: e(sig, g_2) == e(Hₒ(m), pk).
     pub fn verify(&self, sig: &Signature, msg: &[u8]) -> Result<(), Error> {
-        verify(&self.0, &sig.0, msg)
+        self.verify_v1(sig, msg)
+    }
+
+    /// Verify a legacy (v1) [`Signature`].
+    pub fn verify_v1(&self, sig: &Signature, msg: &[u8]) -> Result<(), Error> {
+        verify_v1(&self.0, &sig.0, msg)
+    }
+
+    /// Verify a v2 [`Signature`].
+    pub fn verify_v2(&self, sig: &Signature, msg: &[u8]) -> Result<(), Error> {
+        verify_v2(&self.0, &sig.0, msg)
     }
 
     /// Return pk * t, where t is H_(pk).
     pub fn pk_t(&self) -> G2Affine {
-        let t = h1(self);
+        self.pk_t_v1()
+    }
+
+    /// Return pk * t, where t is H1_v1(pk).
+    pub fn pk_t_v1(&self) -> G2Affine {
+        let t = h1_v1(self);
+        let gx = self.0 * t;
+        gx.into()
+    }
+
+    /// Return pk * t, where t is H1_v2(pk).
+    pub fn pk_t_v2(&self) -> G2Affine {
+        let t = h1_v2(self);
         let gx = self.0 * t;
         gx.into()
     }
@@ -103,11 +125,26 @@ impl PublicKey {
     }
 }
 
-fn verify(key: &G2Affine, sig: &G1Affine, msg: &[u8]) -> Result<(), Error> {
+fn verify_v1(key: &G2Affine, sig: &G1Affine, msg: &[u8]) -> Result<(), Error> {
     if !is_valid(key) || !is_valid_sig(sig) {
         return Err(Error::InvalidPoint);
     }
     let h0m = h0(msg);
+    let p1 = dusk_bls12_381::pairing(sig, &G2Affine::generator());
+    let p2 = dusk_bls12_381::pairing(&h0m, key);
+
+    if p1.eq(&p2) {
+        Ok(())
+    } else {
+        Err(Error::InvalidSignature)
+    }
+}
+
+fn verify_v2(key: &G2Affine, sig: &G1Affine, msg: &[u8]) -> Result<(), Error> {
+    if !is_valid(key) || !is_valid_sig(sig) {
+        return Err(Error::InvalidPoint);
+    }
+    let h0m = h0_v2_point(msg);
     let p1 = dusk_bls12_381::pairing(sig, &G2Affine::generator());
     let p2 = dusk_bls12_381::pairing(&h0m, key);
 
@@ -155,6 +192,11 @@ impl MultisigPublicKey {
     /// The aggregation errors when an empty slice is passed, or one of the
     /// [`PublicKey`]s is made of the identity or an otherwise invalid point.
     pub fn aggregate(pks: &[PublicKey]) -> Result<Self, Error> {
+        Self::aggregate_v1(pks)
+    }
+
+    /// Aggregate keys using legacy (v1) multisig coefficients.
+    pub fn aggregate_v1(pks: &[PublicKey]) -> Result<Self, Error> {
         if pks.is_empty() {
             return Err(Error::NoKeysProvided);
         }
@@ -182,7 +224,41 @@ impl MultisigPublicKey {
         let sum_iter = pks.par_iter();
 
         let sum: G2Projective =
-            sum_iter.map(|pk| G2Projective::from(pk.pk_t())).sum();
+            sum_iter.map(|pk| G2Projective::from(pk.pk_t_v1())).sum();
+
+        Ok(Self(sum.into()))
+    }
+
+    /// Aggregate keys using v2 multisig coefficients.
+    pub fn aggregate_v2(pks: &[PublicKey]) -> Result<Self, Error> {
+        if pks.is_empty() {
+            return Err(Error::NoKeysProvided);
+        }
+
+        #[cfg(not(feature = "parallel"))]
+        let valid_iter = pks.iter();
+        #[cfg(feature = "parallel")]
+        let valid_iter = pks.par_iter();
+
+        #[cfg(not(feature = "parallel"))]
+        let pks_valid =
+            valid_iter.fold(true, |acc, next| acc & next.is_valid());
+        #[cfg(feature = "parallel")]
+        let pks_valid = valid_iter
+            .map(PublicKey::is_valid)
+            .reduce(|| true, |acc, next| acc & next);
+
+        if !pks_valid {
+            return Err(Error::InvalidPoint);
+        }
+
+        #[cfg(not(feature = "parallel"))]
+        let sum_iter = pks.iter();
+        #[cfg(feature = "parallel")]
+        let sum_iter = pks.par_iter();
+
+        let sum: G2Projective =
+            sum_iter.map(|pk| G2Projective::from(pk.pk_t_v2())).sum();
 
         Ok(Self(sum.into()))
     }
@@ -196,7 +272,25 @@ impl MultisigPublicKey {
         sig: &MultisigSignature,
         msg: &[u8],
     ) -> Result<(), Error> {
-        verify(&self.0, &sig.0, msg)
+        self.verify_v1(sig, msg)
+    }
+
+    /// Verify a legacy (v1) [`MultisigSignature`].
+    pub fn verify_v1(
+        &self,
+        sig: &MultisigSignature,
+        msg: &[u8],
+    ) -> Result<(), Error> {
+        verify_v1(&self.0, &sig.0, msg)
+    }
+
+    /// Verify a v2 [`MultisigSignature`].
+    pub fn verify_v2(
+        &self,
+        sig: &MultisigSignature,
+        msg: &[u8],
+    ) -> Result<(), Error> {
+        verify_v2(&self.0, &sig.0, msg)
     }
 
     /// Raw bytes representation
