@@ -21,26 +21,6 @@ pub use keys::{
 };
 pub use signatures::{MultisigSignature, Signature};
 
-/// Version selector for signing and verification behavior.
-///
-/// This is intended as a compatibility switch for consumers that need to
-/// validate or produce signatures created under older rules.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-#[non_exhaustive]
-pub enum BlsVersion {
-    /// Compatibility behavior for older signatures.
-    V1,
-    /// Current behavior.
-    V2,
-}
-
-impl BlsVersion {
-    /// The version used by the default `sign` / `verify` methods.
-    pub const fn current() -> Self {
-        BlsVersion::V2
-    }
-}
-
 #[cfg(feature = "serde")]
 mod serde_support;
 

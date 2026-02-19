@@ -4,266 +4,34 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use bls12_381_bls::{
-    BlsVersion, Error, MultisigPublicKey, PublicKey, SecretKey, Signature,
-};
-use dusk_bls12_381::{BlsScalar, G1Affine, G1Projective};
+#[cfg(feature = "insecure-v1-signing")]
+use bls12_381_bls::Signature;
+use bls12_381_bls::{MultisigPublicKey, PublicKey, SecretKey};
+#[cfg(feature = "insecure-v1-signing")]
+use dusk_bls12_381::BlsScalar;
+#[cfg(feature = "insecure-v1-signing")]
+use dusk_bls12_381::{G1Affine, G1Projective};
+#[cfg(feature = "insecure-v1-signing")]
 use dusk_bytes::Serializable;
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
 
 #[test]
-fn sign_verify() {
-    let rng = &mut StdRng::seed_from_u64(0xbeef);
-
-    let sk = SecretKey::random(rng);
-    let msg = random_message(rng);
-
-    // Sign and verify.
-    let sig = sk.sign(&msg);
-    let pk = PublicKey::from(&sk);
-    assert!(pk.verify(&sig, &msg).is_ok());
-}
-
-#[test]
-fn sign_verify_incorrect_message() {
-    let rng = &mut StdRng::seed_from_u64(0xbeef);
-
-    let sk = SecretKey::random(rng);
-    let msg = random_message(rng);
-
-    let sig = sk.sign(&msg);
-
-    // Verify with a different message.
-    let msg = random_message(rng);
-    let pk = PublicKey::from(&sk);
-
-    assert!(pk.verify(&sig, &msg).is_err());
-}
-
-#[test]
-fn sign_verify_incorrect_pk() {
-    let rng = &mut StdRng::seed_from_u64(0xbeef);
-
-    let sk = SecretKey::random(rng);
-    let msg = random_message(rng);
-
-    let sig = sk.sign(&msg);
-
-    // Verify with a different public key.
-    let sk = SecretKey::random(rng);
-    let pk = PublicKey::from(&sk);
-    assert!(pk.verify(&sig, &msg).is_err());
-}
-
-#[test]
-fn multisig_sign_verify() {
-    let rng = &mut StdRng::seed_from_u64(0xbeef);
-
-    let sk = SecretKey::random(rng);
-    let pk = PublicKey::from(&sk);
-    let msg = random_message(rng);
-
-    let sig = sk.sign_multisig(&pk, &msg);
-
-    let ms_pk = MultisigPublicKey::aggregate(&[pk])
-        .expect("Aggregation should succeed");
-    assert!(ms_pk.verify(&sig, &msg).is_ok());
-}
-
-#[test]
-fn multisig_sign_verify_incorrect_message() {
-    let rng = &mut StdRng::seed_from_u64(0xbeef);
-
-    let sk = SecretKey::random(rng);
-    let pk = PublicKey::from(&sk);
-    let msg = random_message(rng);
-
-    let sig = sk.sign_multisig(&pk, &msg);
-
-    // Verification with a different message should fail.
-    let ms_pk = MultisigPublicKey::aggregate(&[pk])
-        .expect("Aggregation should succeed");
-    let msg = random_message(rng);
-    assert!(ms_pk.verify(&sig, &msg).is_err());
-}
-
-#[test]
-fn multisig_sign_verify_incorrect_apk() {
-    let rng = &mut StdRng::seed_from_u64(0xbeef);
-
-    let sk = SecretKey::random(rng);
-    let pk = PublicKey::from(&sk);
-    let msg = random_message(rng);
-
-    let sig = sk.sign_multisig(&pk, &msg);
-
-    // Verification with another APK should fail.
-    let sk = SecretKey::random(rng);
-    let pk = PublicKey::from(&sk);
-    let ms_pk = MultisigPublicKey::aggregate(&[pk])
-        .expect("Aggregation should succeed");
-    assert!(ms_pk.verify(&sig, &msg).is_err());
-}
-
-#[test]
-fn multisig_sign_verify_aggregated() {
-    let rng = &mut StdRng::seed_from_u64(0xbeef);
-
-    let sk = SecretKey::random(rng);
-    let pk = PublicKey::from(&sk);
-    let msg = random_message(rng);
-
-    let mut ms_sig = sk.sign_multisig(&pk, &msg);
-
-    let mut pks = vec![pk];
-    for _ in 0..10 {
-        let sk = SecretKey::random(rng);
-        let pk = PublicKey::from(&sk);
-        let sig = sk.sign_multisig(&pk, &msg);
-        ms_sig = ms_sig.aggregate(&[sig]);
-        pks.push(pk);
-    }
-    let ms_pk =
-        MultisigPublicKey::aggregate(&pks).expect("Aggregation should succeed");
-
-    assert!(ms_pk.verify(&ms_sig, &msg).is_ok());
-}
-
-#[test]
-fn multisig_sign_verify_aggregated_incorrect_message() {
-    let rng = &mut StdRng::seed_from_u64(0xbeef);
-
-    let sk = SecretKey::random(rng);
-    let pk = PublicKey::from(&sk);
-    let msg = random_message(rng);
-
-    let mut ms_sig = sk.sign_multisig(&pk, &msg);
-
-    let mut pks = vec![pk];
-    for _ in 0..10 {
-        let sk = SecretKey::random(rng);
-        let pk = PublicKey::from(&sk);
-        let sig = sk.sign_multisig(&pk, &msg);
-        ms_sig = ms_sig.aggregate(&[sig]);
-        pks.push(pk);
-    }
-    let ms_pk =
-        MultisigPublicKey::aggregate(&pks).expect("Aggregation should succeed");
-
-    // Verification should fail with a different message.
-    let msg = random_message(rng);
-    assert!(ms_pk.verify(&ms_sig, &msg).is_err());
-}
-
-#[test]
-fn multisig_sign_verify_aggregated_incorrect_apk() {
-    let rng = &mut StdRng::seed_from_u64(0xbeef);
-
-    let sk = SecretKey::random(rng);
-    let pk = PublicKey::from(&sk);
-    let msg = random_message(rng);
-
-    let mut ms_sig = sk.sign_multisig(&pk, &msg);
-
-    for _ in 0..10 {
-        let sk = SecretKey::random(rng);
-        let pk = PublicKey::from(&sk);
-        let sig = sk.sign_multisig(&pk, &msg);
-        ms_sig = ms_sig.aggregate(&[sig]);
-    }
-
-    // Verification with the wrong APK should fail.
-    let ms_pk = MultisigPublicKey::aggregate(&[pk])
-        .expect("Aggregation should succeed");
-    assert!(ms_pk.verify(&ms_sig, &msg).is_err());
-}
-
-#[test]
-fn multisig_sign_verify_identity_fails() {
-    let rng = &mut StdRng::seed_from_u64(0xbeef);
-    let msg = random_message(rng);
-    let sk = SecretKey::from(BlsScalar::zero());
-    let pk = PublicKey::from(&sk);
-    let sig = sk.sign(&msg);
-
-    assert_eq!(pk.verify(&sig, &msg).unwrap_err(), Error::InvalidPoint);
-}
-
-#[test]
-fn default_methods_use_current_version() {
-    let rng = &mut StdRng::seed_from_u64(0xa9e1);
-
-    let sk = SecretKey::random(rng);
-    let pk = PublicKey::from(&sk);
-    let msg = random_message(rng);
-
-    let sig_v1 = sk.sign_with_version(&msg, BlsVersion::V1);
-    let sig_v2 = sk.sign_with_version(&msg, BlsVersion::V2);
-
-    assert!(pk.verify(&sig_v2, &msg).is_ok());
-    assert!(pk.verify(&sig_v1, &msg).is_err());
-    assert!(
-        pk.verify_with_version(&sig_v1, &msg, BlsVersion::V1)
-            .is_ok()
-    );
-
-    let ms_sig_v1 = sk.sign_multisig_with_version(&pk, &msg, BlsVersion::V1);
-    let ms_sig_v2 = sk.sign_multisig_with_version(&pk, &msg, BlsVersion::V2);
-
-    let ms_pk_v2 =
-        MultisigPublicKey::aggregate_with_version(&[pk], BlsVersion::V2)
-            .expect("v2 aggregation should succeed");
-    assert!(ms_pk_v2.verify(&ms_sig_v2, &msg).is_ok());
-    assert!(ms_pk_v2.verify(&ms_sig_v1, &msg).is_err());
-
-    let ms_pk_v1 =
-        MultisigPublicKey::aggregate_with_version(&[pk], BlsVersion::V1)
-            .expect("v1 aggregation should succeed");
-    assert!(
-        ms_pk_v1
-            .verify_with_version(&ms_sig_v1, &msg, BlsVersion::V1)
-            .is_ok()
-    );
-}
-
-#[test]
-fn v1_signature_rejected_by_v2_verifier() {
-    let rng = &mut StdRng::seed_from_u64(0xcafe);
-
-    let sk = SecretKey::random(rng);
-    let pk = PublicKey::from(&sk);
-    let msg = random_message(rng);
-
-    let sig = sk.sign_v1(&msg);
-    assert!(pk.verify_v1(&sig, &msg).is_ok());
-    assert!(pk.verify_v2(&sig, &msg).is_err());
-}
-
-#[test]
-fn v2_signature_rejected_by_v1_verifier() {
-    let rng = &mut StdRng::seed_from_u64(0xdead);
-
-    let sk = SecretKey::random(rng);
-    let pk = PublicKey::from(&sk);
-    let msg = random_message(rng);
-
-    let sig = sk.sign_v2(&msg);
-    assert!(pk.verify_v2(&sig, &msg).is_ok());
-    assert!(pk.verify_v1(&sig, &msg).is_err());
-}
-
-#[test]
-fn multisig_v2_aggregate_and_verify() {
+fn secure_roundtrip_single_and_multisig_aggregate() {
     let rng = &mut StdRng::seed_from_u64(0x5151);
     let msg = random_message(rng);
+
+    let sk = SecretKey::random(rng);
+    let pk = PublicKey::from(&sk);
+    let sig = sk.sign(&msg);
+    assert!(pk.verify(&sig, &msg).is_ok());
 
     let mut pks = Vec::with_capacity(8);
     let mut sigs = Vec::with_capacity(8);
     for _ in 0..8 {
         let sk = SecretKey::random(rng);
         let pk = PublicKey::from(&sk);
-        sigs.push(sk.sign_multisig_v2(&pk, &msg));
+        sigs.push(sk.sign_multisig(&pk, &msg));
         pks.push(pk);
     }
 
@@ -271,14 +39,80 @@ fn multisig_v2_aggregate_and_verify() {
         .iter()
         .copied()
         .fold(sigs[0], |acc, sig| acc.aggregate(&[sig]));
-    let agg_pk = MultisigPublicKey::aggregate_v2(&pks)
-        .expect("v2 public-key aggregation should succeed");
-
-    assert!(agg_pk.verify_v2(&agg_sig, &msg).is_ok());
+    let agg_pk = MultisigPublicKey::aggregate(&pks)
+        .expect("current public-key aggregation should succeed");
+    assert!(agg_pk.verify(&agg_sig, &msg).is_ok());
 }
 
 #[test]
-fn v1_linear_forgery_fails_under_v2() {
+fn secure_rejects_wrong_message_and_wrong_key() {
+    let rng = &mut StdRng::seed_from_u64(0xbeef);
+    let sk = SecretKey::random(rng);
+    let pk = PublicKey::from(&sk);
+
+    let msg = random_message(rng);
+    let wrong_msg = random_message(rng);
+
+    let sig = sk.sign(&msg);
+    assert!(pk.verify(&sig, &wrong_msg).is_err());
+
+    let other_pk = PublicKey::from(&SecretKey::random(rng));
+    assert!(other_pk.verify(&sig, &msg).is_err());
+
+    let ms_sig = sk.sign_multisig(&pk, &msg);
+    let ms_pk = MultisigPublicKey::aggregate(&[pk])
+        .expect("aggregation should succeed");
+    assert!(ms_pk.verify(&ms_sig, &wrong_msg).is_err());
+
+    let wrong_ms_pk = MultisigPublicKey::aggregate(&[other_pk])
+        .expect("aggregation should succeed");
+    assert!(wrong_ms_pk.verify(&ms_sig, &msg).is_err());
+}
+
+#[test]
+fn secure_signatures_are_not_valid_under_insecure_rules() {
+    let rng = &mut StdRng::seed_from_u64(0xdead);
+
+    let sk = SecretKey::random(rng);
+    let pk = PublicKey::from(&sk);
+    let msg = random_message(rng);
+
+    let sig = sk.sign(&msg);
+    assert!(pk.verify(&sig, &msg).is_ok());
+    assert!(pk.verify_insecure(&sig, &msg).is_err());
+
+    let ms_sig = sk.sign_multisig(&pk, &msg);
+    let ms_pk_insecure = MultisigPublicKey::aggregate_insecure(&[pk])
+        .expect("insecure aggregation should succeed");
+    assert!(ms_pk_insecure.verify_insecure(&ms_sig, &msg).is_err());
+}
+
+#[test]
+#[cfg(feature = "insecure-v1-signing")]
+fn insecure_signatures_are_not_valid_under_secure_rules() {
+    let rng = &mut StdRng::seed_from_u64(0xcafe);
+
+    let sk = SecretKey::random(rng);
+    let pk = PublicKey::from(&sk);
+    let msg = random_message(rng);
+
+    let sig = sk.sign_insecure(&msg);
+    assert!(pk.verify_insecure(&sig, &msg).is_ok());
+    assert!(pk.verify(&sig, &msg).is_err());
+
+    let ms_sig = sk.sign_multisig_insecure(&pk, &msg);
+    let ms_pk_insecure = MultisigPublicKey::aggregate_insecure(&[pk])
+        .expect("insecure aggregation should succeed");
+    assert!(ms_pk_insecure.verify_insecure(&ms_sig, &msg).is_ok());
+
+    let ms_pk_secure = MultisigPublicKey::aggregate(&[pk])
+        .expect("aggregation should succeed");
+    assert!(ms_pk_secure.verify(&ms_sig, &msg).is_err());
+}
+
+#[test]
+#[cfg(feature = "insecure-v1-signing")]
+fn insecure_linear_forgery_is_rejected_by_secure_verifier() {
     let rng = &mut StdRng::seed_from_u64(0x1337);
 
     let sk = SecretKey::random(rng);
@@ -288,8 +122,8 @@ fn v1_linear_forgery_fails_under_v2() {
     let msg2 = random_message(rng);
     let msg3 = random_message(rng);
 
-    let sig1 = sk.sign_v1(&msg1);
-    let sig2 = sk.sign_v1(&msg2);
+    let sig1 = sk.sign_insecure(&msg1);
+    let sig2 = sk.sign_insecure(&msg2);
 
     let h1 = BlsScalar::hash_to_scalar(&msg1);
     let h2 = nonzero_hash(&msg2);
@@ -303,30 +137,31 @@ fn v1_linear_forgery_fails_under_v2() {
     let forged = s1 + s2 * b;
     let forged = signature_from_projective(forged);
 
-    assert!(pk.verify_v1(&forged, &msg3).is_ok());
-    assert!(pk.verify_v2(&forged, &msg3).is_err());
+    assert!(pk.verify_insecure(&forged, &msg3).is_ok());
+    assert!(pk.verify(&forged, &msg3).is_err());
 }
 
 fn random_message(rng: &mut StdRng) -> [u8; 100] {
     let mut msg = [0u8; 100];
-
     rng.fill_bytes(&mut msg);
-
     msg
 }
 
+#[cfg(feature = "insecure-v1-signing")]
 fn sig_to_projective(sig: &Signature) -> G1Projective {
     let bytes = sig.to_bytes();
     let affine = G1Affine::from_bytes(&bytes).expect("signature bytes valid");
     G1Projective::from(affine)
 }
 
+#[cfg(feature = "insecure-v1-signing")]
 fn signature_from_projective(p: G1Projective) -> Signature {
     let affine: G1Affine = p.into();
     Signature::from_bytes(&affine.to_bytes())
         .expect("constructed projective should serialize to signature")
 }
 
+#[cfg(feature = "insecure-v1-signing")]
 fn nonzero_hash(msg: &[u8]) -> BlsScalar {
     let mut h = BlsScalar::hash_to_scalar(msg);
     if h.is_zero().into() {

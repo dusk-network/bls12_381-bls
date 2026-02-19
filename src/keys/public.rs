@@ -4,11 +4,11 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::hash::{h0, h0_v2_point, h1_v1, h1_v2};
+use crate::hash::{h0, h0_insecure_point, h1, h1_insecure};
 use crate::signatures::is_valid as is_valid_sig;
-use crate::{BlsVersion, Error, MultisigSignature, SecretKey, Signature};
+use crate::{Error, MultisigSignature, SecretKey, Signature};
 
-use dusk_bls12_381::{G1Affine, G2Affine, G2Projective};
+use dusk_bls12_381::{G1Affine, G2Affine, G2Prepared, G2Projective, Gt};
 use dusk_bytes::{Error as DuskBytesError, Serializable};
 
 #[cfg(feature = "rkyv-impl")]
@@ -53,57 +53,30 @@ impl From<&SecretKey> for PublicKey {
 }
 
 impl PublicKey {
-    /// Verify a [`Signature`] using the current (latest) behavior.
+    /// Verify a [`Signature`] using the default behavior.
     pub fn verify(&self, sig: &Signature, msg: &[u8]) -> Result<(), Error> {
-        self.verify_with_version(sig, msg, BlsVersion::current())
+        verify_signature(&self.0, &sig.0, msg)
     }
 
-    /// Verify a [`Signature`] using an explicitly selected version.
-    pub fn verify_with_version(
+    /// Verify a [`Signature`] using the insecure v1 behavior.
+    pub fn verify_insecure(
         &self,
         sig: &Signature,
         msg: &[u8],
-        version: BlsVersion,
     ) -> Result<(), Error> {
-        match version {
-            BlsVersion::V1 => self.verify_v1(sig, msg),
-            BlsVersion::V2 => self.verify_v2(sig, msg),
-        }
-    }
-
-    /// Verify a legacy (v1) [`Signature`].
-    pub fn verify_v1(&self, sig: &Signature, msg: &[u8]) -> Result<(), Error> {
-        verify_v1(&self.0, &sig.0, msg)
-    }
-
-    /// Verify a v2 [`Signature`].
-    pub fn verify_v2(&self, sig: &Signature, msg: &[u8]) -> Result<(), Error> {
-        verify_v2(&self.0, &sig.0, msg)
+        verify_insecure_signature(&self.0, &sig.0, msg)
     }
 
     /// Return pk * t, where t is H_(pk).
     pub fn pk_t(&self) -> G2Affine {
-        self.pk_t_with_version(BlsVersion::current())
-    }
-
-    /// Return pk * t for the explicitly selected version.
-    pub fn pk_t_with_version(&self, version: BlsVersion) -> G2Affine {
-        match version {
-            BlsVersion::V1 => self.pk_t_v1(),
-            BlsVersion::V2 => self.pk_t_v2(),
-        }
-    }
-
-    /// Return pk * t, where t is H1_v1(pk).
-    pub fn pk_t_v1(&self) -> G2Affine {
-        let t = h1_v1(self);
+        let t = h1(self);
         let gx = self.0 * t;
         gx.into()
     }
 
-    /// Return pk * t, where t is H1_v2(pk).
-    pub fn pk_t_v2(&self) -> G2Affine {
-        let t = h1_v2(self);
+    /// Return pk * t for the insecure v1 multisig construction.
+    pub fn pk_t_insecure(&self) -> G2Affine {
+        let t = h1_insecure(self);
         let gx = self.0 * t;
         gx.into()
     }
@@ -145,30 +118,44 @@ impl PublicKey {
     }
 }
 
-fn verify_v1(key: &G2Affine, sig: &G1Affine, msg: &[u8]) -> Result<(), Error> {
+fn verify_insecure_signature(
+    key: &G2Affine,
+    sig: &G1Affine,
+    msg: &[u8],
+) -> Result<(), Error> {
     if !is_valid(key) || !is_valid_sig(sig) {
         return Err(Error::InvalidPoint);
     }
-    let h0m = h0(msg);
-    let p1 = dusk_bls12_381::pairing(sig, &G2Affine::generator());
-    let p2 = dusk_bls12_381::pairing(&h0m, key);
+    let h0m = h0_insecure_point(msg);
+    let p = dusk_bls12_381::multi_miller_loop(&[
+        (sig, &G2Prepared::from(G2Affine::generator())),
+        (&-h0m, &G2Prepared::from(*key)),
+    ])
+    .final_exponentiation();
 
-    if p1.eq(&p2) {
+    if p.eq(&Gt::identity()) {
         Ok(())
     } else {
         Err(Error::InvalidSignature)
     }
 }
 
-fn verify_v2(key: &G2Affine, sig: &G1Affine, msg: &[u8]) -> Result<(), Error> {
+fn verify_signature(
+    key: &G2Affine,
+    sig: &G1Affine,
+    msg: &[u8],
+) -> Result<(), Error> {
     if !is_valid(key) || !is_valid_sig(sig) {
         return Err(Error::InvalidPoint);
     }
-    let h0m = h0_v2_point(msg);
-    let p1 = dusk_bls12_381::pairing(sig, &G2Affine::generator());
-    let p2 = dusk_bls12_381::pairing(&h0m, key);
+    let h0m = h0(msg);
+    let p = dusk_bls12_381::multi_miller_loop(&[
+        (sig, &G2Prepared::from(G2Affine::generator())),
+        (&-h0m, &G2Prepared::from(*key)),
+    ])
+    .final_exponentiation();
 
-    if p1.eq(&p2) {
+    if p.eq(&Gt::identity()) {
         Ok(())
     } else {
         Err(Error::InvalidSignature)
@@ -212,22 +199,6 @@ impl MultisigPublicKey {
     /// The aggregation errors when an empty slice is passed, or one of the
     /// [`PublicKey`]s is made of the identity or an otherwise invalid point.
     pub fn aggregate(pks: &[PublicKey]) -> Result<Self, Error> {
-        Self::aggregate_with_version(pks, BlsVersion::current())
-    }
-
-    /// Aggregate keys using an explicitly selected version.
-    pub fn aggregate_with_version(
-        pks: &[PublicKey],
-        version: BlsVersion,
-    ) -> Result<Self, Error> {
-        match version {
-            BlsVersion::V1 => Self::aggregate_v1(pks),
-            BlsVersion::V2 => Self::aggregate_v2(pks),
-        }
-    }
-
-    /// Aggregate keys using legacy (v1) multisig coefficients.
-    pub fn aggregate_v1(pks: &[PublicKey]) -> Result<Self, Error> {
         if pks.is_empty() {
             return Err(Error::NoKeysProvided);
         }
@@ -255,13 +226,13 @@ impl MultisigPublicKey {
         let sum_iter = pks.par_iter();
 
         let sum: G2Projective =
-            sum_iter.map(|pk| G2Projective::from(pk.pk_t_v1())).sum();
+            sum_iter.map(|pk| G2Projective::from(pk.pk_t())).sum();
 
         Ok(Self(sum.into()))
     }
 
-    /// Aggregate keys using v2 multisig coefficients.
-    pub fn aggregate_v2(pks: &[PublicKey]) -> Result<Self, Error> {
+    /// Aggregate keys using insecure v1 multisig coefficients.
+    pub fn aggregate_insecure(pks: &[PublicKey]) -> Result<Self, Error> {
         if pks.is_empty() {
             return Err(Error::NoKeysProvided);
         }
@@ -288,8 +259,9 @@ impl MultisigPublicKey {
         #[cfg(feature = "parallel")]
         let sum_iter = pks.par_iter();
 
-        let sum: G2Projective =
-            sum_iter.map(|pk| G2Projective::from(pk.pk_t_v2())).sum();
+        let sum: G2Projective = sum_iter
+            .map(|pk| G2Projective::from(pk.pk_t_insecure()))
+            .sum();
 
         Ok(Self(sum.into()))
     }
@@ -303,38 +275,16 @@ impl MultisigPublicKey {
         sig: &MultisigSignature,
         msg: &[u8],
     ) -> Result<(), Error> {
-        self.verify_with_version(sig, msg, BlsVersion::current())
+        verify_signature(&self.0, &sig.0, msg)
     }
 
-    /// Verify a [`MultisigSignature`] using an explicitly selected version.
-    pub fn verify_with_version(
-        &self,
-        sig: &MultisigSignature,
-        msg: &[u8],
-        version: BlsVersion,
-    ) -> Result<(), Error> {
-        match version {
-            BlsVersion::V1 => self.verify_v1(sig, msg),
-            BlsVersion::V2 => self.verify_v2(sig, msg),
-        }
-    }
-
-    /// Verify a legacy (v1) [`MultisigSignature`].
-    pub fn verify_v1(
+    /// Verify a [`MultisigSignature`] using the insecure v1 behavior.
+    pub fn verify_insecure(
         &self,
         sig: &MultisigSignature,
         msg: &[u8],
     ) -> Result<(), Error> {
-        verify_v1(&self.0, &sig.0, msg)
-    }
-
-    /// Verify a v2 [`MultisigSignature`].
-    pub fn verify_v2(
-        &self,
-        sig: &MultisigSignature,
-        msg: &[u8],
-    ) -> Result<(), Error> {
-        verify_v2(&self.0, &sig.0, msg)
+        verify_insecure_signature(&self.0, &sig.0, msg)
     }
 
     /// Raw bytes representation

@@ -2,6 +2,22 @@
 
 This implementation currently only supports rogue-key attack resistant batching, and does not support distinct message verification.
 
+## Security Notice: Insecure V1 Signing
+
+Insecure v1 signing is considered insecure and should not be used for new
+signatures.
+
+- By default, `sign`, `sign_multisig`, `verify`, and `MultisigPublicKey::verify`
+  use the default behavior.
+- Historical insecure verification remains available via
+  `verify_insecure` and `MultisigPublicKey::verify_insecure`.
+- Insecure v1 signing is opt-in via the `insecure-v1-signing` cargo feature.
+
+```toml
+# Only enable this if you explicitly need to produce insecure v1 signatures.
+bls12_381-bls = { version = "0.6.0-rc.0", features = ["insecure-v1-signing"] }
+```
+
 ## Benchmarks
 
 ### Machine specs

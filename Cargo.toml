@@ -1,6 +1,6 @@
 [package]
 name = "bls12_381-bls"
-version = "0.5.1"
+version = "0.6.0-rc.0"
 
 readme = "README.md"
 repository = "https://github.com/dusk-network/bls12_381-bls"
@@ -44,3 +44,4 @@ harness = false
 rkyv-impl = ["dusk-bls12_381/rkyv-impl", "rkyv", "bytecheck"]
 parallel = ["dep:rayon"]
 serde = ["serde/alloc", "bs58/alloc"]
+insecure-v1-signing = []
