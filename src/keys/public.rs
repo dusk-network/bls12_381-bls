@@ -6,7 +6,7 @@
 
 use crate::hash::{h0, h0_v2_point, h1_v1, h1_v2};
 use crate::signatures::is_valid as is_valid_sig;
-use crate::{Error, MultisigSignature, SecretKey, Signature};
+use crate::{BlsVersion, Error, MultisigSignature, SecretKey, Signature};
 
 use dusk_bls12_381::{G1Affine, G2Affine, G2Projective};
 use dusk_bytes::{Error as DuskBytesError, Serializable};
@@ -53,10 +53,22 @@ impl From<&SecretKey> for PublicKey {
 }
 
 impl PublicKey {
-    /// Verify a [`Signature`] by comparing the results of the two pairing
-    /// operations: e(sig, g_2) == e(Hₒ(m), pk).
+    /// Verify a [`Signature`] using the current (latest) behavior.
     pub fn verify(&self, sig: &Signature, msg: &[u8]) -> Result<(), Error> {
-        self.verify_v1(sig, msg)
+        self.verify_with_version(sig, msg, BlsVersion::current())
+    }
+
+    /// Verify a [`Signature`] using an explicitly selected version.
+    pub fn verify_with_version(
+        &self,
+        sig: &Signature,
+        msg: &[u8],
+        version: BlsVersion,
+    ) -> Result<(), Error> {
+        match version {
+            BlsVersion::V1 => self.verify_v1(sig, msg),
+            BlsVersion::V2 => self.verify_v2(sig, msg),
+        }
     }
 
     /// Verify a legacy (v1) [`Signature`].
@@ -71,7 +83,15 @@ impl PublicKey {
 
     /// Return pk * t, where t is H_(pk).
     pub fn pk_t(&self) -> G2Affine {
-        self.pk_t_v1()
+        self.pk_t_with_version(BlsVersion::current())
+    }
+
+    /// Return pk * t for the explicitly selected version.
+    pub fn pk_t_with_version(&self, version: BlsVersion) -> G2Affine {
+        match version {
+            BlsVersion::V1 => self.pk_t_v1(),
+            BlsVersion::V2 => self.pk_t_v2(),
+        }
     }
 
     /// Return pk * t, where t is H1_v1(pk).
@@ -192,7 +212,18 @@ impl MultisigPublicKey {
     /// The aggregation errors when an empty slice is passed, or one of the
     /// [`PublicKey`]s is made of the identity or an otherwise invalid point.
     pub fn aggregate(pks: &[PublicKey]) -> Result<Self, Error> {
-        Self::aggregate_v1(pks)
+        Self::aggregate_with_version(pks, BlsVersion::current())
+    }
+
+    /// Aggregate keys using an explicitly selected version.
+    pub fn aggregate_with_version(
+        pks: &[PublicKey],
+        version: BlsVersion,
+    ) -> Result<Self, Error> {
+        match version {
+            BlsVersion::V1 => Self::aggregate_v1(pks),
+            BlsVersion::V2 => Self::aggregate_v2(pks),
+        }
     }
 
     /// Aggregate keys using legacy (v1) multisig coefficients.
@@ -272,7 +303,20 @@ impl MultisigPublicKey {
         sig: &MultisigSignature,
         msg: &[u8],
     ) -> Result<(), Error> {
-        self.verify_v1(sig, msg)
+        self.verify_with_version(sig, msg, BlsVersion::current())
+    }
+
+    /// Verify a [`MultisigSignature`] using an explicitly selected version.
+    pub fn verify_with_version(
+        &self,
+        sig: &MultisigSignature,
+        msg: &[u8],
+        version: BlsVersion,
+    ) -> Result<(), Error> {
+        match version {
+            BlsVersion::V1 => self.verify_v1(sig, msg),
+            BlsVersion::V2 => self.verify_v2(sig, msg),
+        }
     }
 
     /// Verify a legacy (v1) [`MultisigSignature`].

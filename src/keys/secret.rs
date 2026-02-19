@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::hash::{h0, h0_v2_point, h1, h1_v2};
-use crate::{MultisigSignature, PublicKey, Signature};
+use crate::{BlsVersion, MultisigSignature, PublicKey, Signature};
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{Error as DuskBytesError, Serializable};
@@ -94,9 +94,21 @@ impl Serializable<32> for SecretKey {
 }
 
 impl SecretKey {
-    /// Sign a message, using the single-signature scheme.
+    /// Sign a message using the current (latest) single-signature behavior.
     pub fn sign(&self, msg: &[u8]) -> Signature {
-        self.sign_v1(msg)
+        self.sign_with_version(msg, BlsVersion::current())
+    }
+
+    /// Sign a message using an explicitly selected version.
+    pub fn sign_with_version(
+        &self,
+        msg: &[u8],
+        version: BlsVersion,
+    ) -> Signature {
+        match version {
+            BlsVersion::V1 => self.sign_v1(msg),
+            BlsVersion::V2 => self.sign_v2(msg),
+        }
     }
 
     /// Sign a message using the legacy (v1) single-signature scheme.
@@ -119,13 +131,26 @@ impl SecretKey {
         Signature(e.into())
     }
 
-    /// Sign a message, using the multi-signature scheme.
+    /// Sign a message using the current (latest) multi-signature behavior.
     pub fn sign_multisig(
         &self,
         pk: &PublicKey,
         msg: &[u8],
     ) -> MultisigSignature {
-        self.sign_multisig_v1(pk, msg)
+        self.sign_multisig_with_version(pk, msg, BlsVersion::current())
+    }
+
+    /// Sign a message using an explicitly selected multi-signature version.
+    pub fn sign_multisig_with_version(
+        &self,
+        pk: &PublicKey,
+        msg: &[u8],
+        version: BlsVersion,
+    ) -> MultisigSignature {
+        match version {
+            BlsVersion::V1 => self.sign_multisig_v1(pk, msg),
+            BlsVersion::V2 => self.sign_multisig_v2(pk, msg),
+        }
     }
 
     /// Sign a message using the legacy (v1) multi-signature scheme.

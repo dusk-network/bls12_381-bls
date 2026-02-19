@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use bls12_381_bls::{
-    Error, MultisigPublicKey, PublicKey, SecretKey, Signature,
+    BlsVersion, Error, MultisigPublicKey, PublicKey, SecretKey, Signature,
 };
 use dusk_bls12_381::{BlsScalar, G1Affine, G1Projective};
 use dusk_bytes::Serializable;
@@ -188,6 +188,43 @@ fn multisig_sign_verify_identity_fails() {
     let sig = sk.sign(&msg);
 
     assert_eq!(pk.verify(&sig, &msg).unwrap_err(), Error::InvalidPoint);
+}
+
+#[test]
+fn default_methods_use_current_version() {
+    let rng = &mut StdRng::seed_from_u64(0xa9e1);
+
+    let sk = SecretKey::random(rng);
+    let pk = PublicKey::from(&sk);
+    let msg = random_message(rng);
+
+    let sig_v1 = sk.sign_with_version(&msg, BlsVersion::V1);
+    let sig_v2 = sk.sign_with_version(&msg, BlsVersion::V2);
+
+    assert!(pk.verify(&sig_v2, &msg).is_ok());
+    assert!(pk.verify(&sig_v1, &msg).is_err());
+    assert!(
+        pk.verify_with_version(&sig_v1, &msg, BlsVersion::V1)
+            .is_ok()
+    );
+
+    let ms_sig_v1 = sk.sign_multisig_with_version(&pk, &msg, BlsVersion::V1);
+    let ms_sig_v2 = sk.sign_multisig_with_version(&pk, &msg, BlsVersion::V2);
+
+    let ms_pk_v2 =
+        MultisigPublicKey::aggregate_with_version(&[pk], BlsVersion::V2)
+            .expect("v2 aggregation should succeed");
+    assert!(ms_pk_v2.verify(&ms_sig_v2, &msg).is_ok());
+    assert!(ms_pk_v2.verify(&ms_sig_v1, &msg).is_err());
+
+    let ms_pk_v1 =
+        MultisigPublicKey::aggregate_with_version(&[pk], BlsVersion::V1)
+            .expect("v1 aggregation should succeed");
+    assert!(
+        ms_pk_v1
+            .verify_with_version(&ms_sig_v1, &msg, BlsVersion::V1)
+            .is_ok()
+    );
 }
 
 #[test]
