@@ -14,7 +14,8 @@ use dusk_bytes::Serializable;
 use sha2::Sha256;
 
 const H0_DST: &[u8] = b"BLS_SIG_BLS12381G1_XMD:SHA-256_DUSK_V2";
-const H1_DST: &[u8] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_DUSK_H1_V2";
+// Dedicated scalar-domain DST for secure multisig coefficients.
+const H1_DST: &[u8] = b"BLS_SIG_BLS12381_SCALAR_SHA256_DUSK_H1_V2";
 
 #[inline]
 fn h0_insecure(msg: &[u8]) -> G1Affine {

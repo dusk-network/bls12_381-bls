@@ -5,10 +5,12 @@ This implementation currently only supports rogue-key attack resistant batching,
 ## Security Notice: Insecure V1 Signing
 
 Insecure v1 signing is considered insecure and should not be used for new
-signatures.
+signatures. The v1 construction allows linear forgery combinations due to its
+legacy hash-to-scalar mapping.
 
-- By default, `sign`, `sign_multisig`, `verify`, and `MultisigPublicKey::verify`
-  use the default behavior.
+- By default, `sign`, `sign_multisig`, `verify`, and
+  `MultisigPublicKey::verify` use the secure RFC9380 hash-to-curve path with
+  explicit domain separation.
 - Historical insecure verification remains available via
   `verify_insecure` and `MultisigPublicKey::verify_insecure`.
 - Legacy multisig verification also requires

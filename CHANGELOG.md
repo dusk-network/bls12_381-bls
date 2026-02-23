@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Move to stable MSRV 1.85
 - Move to rust edition 2024
+- Make RFC9380 hash-to-curve signing/verification the default behavior, keep
+  explicit `*_insecure` APIs for historical v1 verification, and gate v1
+  signing behind the `insecure-v1-signing` feature.
 
 ## [0.5.1] - 2025-08-08
 

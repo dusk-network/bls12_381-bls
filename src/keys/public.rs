@@ -59,6 +59,12 @@ impl PublicKey {
     }
 
     /// Verify a [`Signature`] using the insecure v1 behavior.
+    ///
+    /// This path exists only for historical compatibility with signatures
+    /// produced before the secure hash-to-curve migration. It uses the legacy
+    /// v1 mapping and should not be used for new signatures.
+    ///
+    /// For all new operations, use [`PublicKey::verify`].
     pub fn verify_insecure(
         &self,
         sig: &Signature,
@@ -74,7 +80,10 @@ impl PublicKey {
         gx.into()
     }
 
-    /// Return pk * t for the insecure v1 multisig construction.
+    /// Return `pk * t` for the insecure v1 multisig construction.
+    ///
+    /// Here `t` is computed with the legacy insecure coefficient hash and is
+    /// only valid for historical multisig verification.
     pub fn pk_t_insecure(&self) -> G2Affine {
         let t = h1_insecure(self);
         let gx = self.0 * t;
@@ -127,6 +136,8 @@ fn verify_insecure_signature(
         return Err(Error::InvalidPoint);
     }
     let h0m = h0_insecure_point(msg);
+    // e(sig, g2) == e(H(msg), pk) rewritten as
+    // e(sig, g2) * e(-H(msg), pk) == 1 in one multi-miller loop.
     let p = dusk_bls12_381::multi_miller_loop(&[
         (sig, &G2Prepared::from(G2Affine::generator())),
         (&-h0m, &G2Prepared::from(*key)),
@@ -149,6 +160,8 @@ fn verify_signature(
         return Err(Error::InvalidPoint);
     }
     let h0m = h0(msg);
+    // e(sig, g2) == e(H(msg), pk) rewritten as
+    // e(sig, g2) * e(-H(msg), pk) == 1 in one multi-miller loop.
     let p = dusk_bls12_381::multi_miller_loop(&[
         (sig, &G2Prepared::from(G2Affine::generator())),
         (&-h0m, &G2Prepared::from(*key)),
@@ -232,6 +245,15 @@ impl MultisigPublicKey {
     }
 
     /// Aggregate keys using insecure v1 multisig coefficients.
+    ///
+    /// This exists only for verifying historical multisignatures created with
+    /// the legacy v1 coefficient hash. New aggregations should use
+    /// [`MultisigPublicKey::aggregate`].
+    ///
+    /// # Errors
+    ///
+    /// The aggregation errors when an empty slice is passed, or one of the
+    /// [`PublicKey`]s is made of the identity or an otherwise invalid point.
     pub fn aggregate_insecure(pks: &[PublicKey]) -> Result<Self, Error> {
         if pks.is_empty() {
             return Err(Error::NoKeysProvided);
@@ -279,6 +301,10 @@ impl MultisigPublicKey {
     }
 
     /// Verify a [`MultisigSignature`] using the insecure v1 behavior.
+    ///
+    /// This path exists only for historical compatibility with multisignatures
+    /// produced before the secure hash-to-curve migration. For all new
+    /// operations, use [`MultisigPublicKey::verify`].
     pub fn verify_insecure(
         &self,
         sig: &MultisigSignature,
