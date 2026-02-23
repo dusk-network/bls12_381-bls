@@ -11,6 +11,8 @@ signatures.
   use the default behavior.
 - Historical insecure verification remains available via
   `verify_insecure` and `MultisigPublicKey::verify_insecure`.
+- Legacy multisig verification also requires
+  `MultisigPublicKey::aggregate_insecure` for key aggregation.
 - Insecure v1 signing is opt-in via the `insecure-v1-signing` cargo feature.
 
 ```toml

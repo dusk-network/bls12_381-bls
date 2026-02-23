@@ -59,3 +59,54 @@ fn apk_identity_fails() {
         Error::InvalidPoint
     );
 }
+
+#[test]
+fn apk_insecure_empty_input_fails() {
+    assert_eq!(
+        MultisigPublicKey::aggregate_insecure(&[]).unwrap_err(),
+        Error::NoKeysProvided
+    );
+}
+
+#[test]
+fn apk_insecure_identity_fails() {
+    let mut rng = StdRng::seed_from_u64(0xba0bab);
+
+    let sk1 = SecretKey::random(&mut rng);
+    let pk1 = PublicKey::from(&sk1);
+    let sk2 = SecretKey::random(&mut rng);
+    let pk2 = PublicKey::from(&sk2);
+    let identity = PublicKey::from(&SecretKey::from(BlsScalar::zero()));
+
+    assert_eq!(
+        MultisigPublicKey::aggregate_insecure(&[identity, pk1, pk2])
+            .unwrap_err(),
+        Error::InvalidPoint
+    );
+    assert_eq!(
+        MultisigPublicKey::aggregate_insecure(&[pk1, identity, pk2])
+            .unwrap_err(),
+        Error::InvalidPoint
+    );
+    assert_eq!(
+        MultisigPublicKey::aggregate_insecure(&[pk1, pk2, identity])
+            .unwrap_err(),
+        Error::InvalidPoint
+    );
+}
+
+#[test]
+fn apk_insecure_invalid_point_fails() {
+    let mut rng = StdRng::seed_from_u64(0xdecafbad);
+    let valid = PublicKey::from(&SecretKey::random(&mut rng));
+
+    let mut invalid_raw = [0xffu8; dusk_bls12_381::G2Affine::RAW_SIZE];
+    invalid_raw[dusk_bls12_381::G2Affine::RAW_SIZE - 1] = 0;
+    let invalid = unsafe { PublicKey::from_slice_unchecked(&invalid_raw) };
+    assert!(!invalid.is_valid());
+
+    assert_eq!(
+        MultisigPublicKey::aggregate_insecure(&[valid, invalid]).unwrap_err(),
+        Error::InvalidPoint
+    );
+}
