@@ -5,6 +5,8 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::hash::{h0, h1};
+#[cfg(feature = "insecure-v1-signing")]
+use crate::hash::{h0_insecure_point, h1_insecure};
 use crate::{MultisigSignature, PublicKey, Signature};
 
 use dusk_bls12_381::BlsScalar;
@@ -94,7 +96,7 @@ impl Serializable<32> for SecretKey {
 }
 
 impl SecretKey {
-    /// Sign a message, using the single-signature scheme.
+    /// Sign a message using the default single-signature behavior.
     pub fn sign(&self, msg: &[u8]) -> Signature {
         // Hash message
         let h = h0(msg);
@@ -104,7 +106,21 @@ impl SecretKey {
         Signature(e.into())
     }
 
-    /// Sign a message, using the multi-signature scheme.
+    /// Sign a message using the insecure v1 single-signature scheme.
+    ///
+    /// This path is considered insecure and is intentionally gated behind
+    /// the `insecure-v1-signing` feature.
+    #[cfg(feature = "insecure-v1-signing")]
+    pub fn sign_insecure(&self, msg: &[u8]) -> Signature {
+        // Hash message
+        let h = h0_insecure_point(msg);
+
+        // Multiply point by sk
+        let e = h * self.0;
+        Signature(e.into())
+    }
+
+    /// Sign a message using the default multi-signature behavior.
     pub fn sign_multisig(
         &self,
         pk: &PublicKey,
@@ -115,6 +131,26 @@ impl SecretKey {
         // Turn signature into its modified construction,
         // which provides protection against rogue-key attacks.
         let t = h1(pk);
+        sig.0 = (sig.0 * t).into();
+
+        MultisigSignature(sig.0)
+    }
+
+    /// Sign a message using the insecure v1 multi-signature scheme.
+    ///
+    /// This path is considered insecure and is intentionally gated behind
+    /// the `insecure-v1-signing` feature.
+    #[cfg(feature = "insecure-v1-signing")]
+    pub fn sign_multisig_insecure(
+        &self,
+        pk: &PublicKey,
+        msg: &[u8],
+    ) -> MultisigSignature {
+        let mut sig = self.sign_insecure(msg);
+
+        // Turn signature into its modified construction,
+        // which provides protection against rogue-key attacks.
+        let t = h1_insecure(pk);
         sig.0 = (sig.0 * t).into();
 
         MultisigSignature(sig.0)

@@ -16,12 +16,14 @@ edition = "2024"
 [dependencies]
 dusk-bls12_381 = { version = "0.14", default-features = false, features = [
     "alloc",
+    "experimental",
     "pairings",
     "zeroize",
 ] }
 dusk-bytes = "0.1"
 rand_core = { version = "0.6", default-features = false }
 ff = { version = "0.13", default-features = false }
+sha2 = { version = "0.9", default-features = false }
 zeroize = { version = "1", default-features = false, features = ["derive"] }
 rkyv = { version = "0.7", optional = true, default-features = false }
 bytecheck = { version = "0.6", optional = true, default-features = false }
@@ -42,3 +44,4 @@ harness = false
 rkyv-impl = ["dusk-bls12_381/rkyv-impl", "rkyv", "bytecheck"]
 parallel = ["dep:rayon"]
 serde = ["serde/alloc", "bs58/alloc"]
+insecure-v1-signing = []
