@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Raise the MSRV to Rust 1.96.1 [#44]
+
 ## [0.6.0] - 2026-02-27
 
 ### Changed
@@ -103,6 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-bls12_381-sign](https://github.com/dusk-network/bls12_381-sign/) at version `0.6.0` under the new name: `bls12_381-bls` and without the go related code.
 
 <!-- ISSUES -->
+[#44]: https://github.com/dusk-network/bls12_381-bls/issues/44
 [#3596]: https://github.com/dusk-network/rusk/issues/3596
 [#21]: https://github.com/dusk-network/bls12_381-bls/issues/21
 [#18]: https://github.com/dusk-network/bls12_381-bls/issues/18
