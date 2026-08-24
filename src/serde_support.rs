@@ -9,7 +9,6 @@ extern crate alloc;
 use alloc::format;
 use alloc::string::String;
 
-use bs58;
 use dusk_bytes::Serializable;
 use serde::de::Error as SerdeError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
