@@ -5,9 +5,9 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use bls12_381_bls::{
-    MultisigPublicKey, MultisigSignature, PublicKey, SecretKey, Signature,
+    Error, MultisigPublicKey, MultisigSignature, PublicKey, SecretKey,
+    Signature,
 };
-#[cfg(feature = "insecure-v1-signing")]
 use dusk_bls12_381::BlsScalar;
 #[cfg(feature = "insecure-v1-signing")]
 use dusk_bls12_381::{G1Affine, G1Projective};
@@ -41,6 +41,99 @@ fn secure_roundtrip_single_and_multisig_aggregate() {
     let agg_pk = MultisigPublicKey::aggregate(&pks)
         .expect("current public-key aggregation should succeed");
     assert!(agg_pk.verify(&agg_sig, &msg).is_ok());
+}
+
+#[test]
+fn v2_compatibility_vectors_are_unchanged() {
+    for (scalar, msg, pk_bytes, apk_bytes, sig_bytes, multi_bytes) in
+        include!("fixtures/v2.rs")
+    {
+        let sk = SecretKey::from(BlsScalar::from(scalar));
+        let pk = PublicKey::from(&sk);
+        let apk = MultisigPublicKey::aggregate(&[pk]).unwrap();
+        assert_eq!(pk.to_bytes(), pk_bytes);
+        assert_eq!(apk.to_bytes(), apk_bytes);
+        assert_eq!(sk.sign(msg).to_bytes(), sig_bytes);
+        assert_eq!(sk.sign_multisig(&pk, msg).to_bytes(), multi_bytes);
+
+        PublicKey::from_bytes(&pk_bytes)
+            .unwrap()
+            .verify(&Signature::from_bytes(&sig_bytes).unwrap(), msg)
+            .unwrap();
+        MultisigPublicKey::from_bytes(&apk_bytes)
+            .unwrap()
+            .verify(&MultisigSignature::from_bytes(&multi_bytes).unwrap(), msg)
+            .unwrap();
+    }
+}
+
+#[test]
+fn v3_serialized_signatures_preserve_verification_boundaries() {
+    let msg = b"explicit version boundary";
+    let keys = [7_u64, 11].map(|n| SecretKey::from(BlsScalar::from(n)));
+    let pks = keys.each_ref().map(PublicKey::from);
+    let pk = pks[0];
+    let single = keys[0].sign_v3(msg);
+    let apk = MultisigPublicKey::aggregate(&pks).unwrap();
+    let multi = keys[0]
+        .sign_multisig_v3(&pks[0], msg)
+        .aggregate(&[keys[1].sign_multisig_v3(&pks[1], msg)]);
+    assert_eq!(pk, PublicKey::from_bytes(&pk.to_bytes()).unwrap());
+    assert_eq!(single, Signature::from_bytes(&single.to_bytes()).unwrap());
+    assert_eq!(apk, MultisigPublicKey::from_bytes(&apk.to_bytes()).unwrap());
+    assert_eq!(
+        multi,
+        MultisigSignature::from_bytes(&multi.to_bytes()).unwrap()
+    );
+
+    pk.verify_v3(&single, msg).unwrap();
+    apk.verify_v3(&multi, msg).unwrap();
+    assert!(pk.verify_v3(&single, b"wrong message").is_err());
+    assert!(pks[1].verify_v3(&single, msg).is_err());
+    assert!(apk.verify_v3(&multi, b"wrong message").is_err());
+    let wrong_apk = MultisigPublicKey::aggregate(&pks[..1]).unwrap();
+    assert!(wrong_apk.verify_v3(&multi, msg).is_err());
+
+    assert!(pk.verify_insecure(&single, msg).is_err());
+    let historical_apk = MultisigPublicKey::aggregate_insecure(&pks).unwrap();
+    assert!(historical_apk.verify_insecure(&multi, msg).is_err());
+    assert!(apk.verify_insecure(&multi, msg).is_err());
+
+    let identity_pk = PublicKey::default();
+    let identity_sig = Signature::default();
+    for (key, sig) in [
+        (&identity_pk, &identity_sig),
+        (&identity_pk, &single),
+        (&pk, &identity_sig),
+    ] {
+        assert_eq!(key.verify_v3(sig, msg), Err(Error::InvalidPoint));
+    }
+    let identity_apk = MultisigPublicKey::default();
+    let identity_multi = MultisigSignature::default();
+    for (key, sig) in [
+        (&identity_apk, &identity_multi),
+        (&identity_apk, &multi),
+        (&apk, &identity_multi),
+    ] {
+        assert_eq!(key.verify_v3(sig, msg), Err(Error::InvalidPoint));
+    }
+}
+
+#[test]
+fn mixed_v2_v3_multisignatures_are_rejected() {
+    let msg = b"mixed-version aggregate";
+    let keys = [7_u64, 11].map(|n| SecretKey::from(BlsScalar::from(n)));
+    let pks = keys.each_ref().map(PublicKey::from);
+    let apk = MultisigPublicKey::aggregate(&pks).unwrap();
+    let v2 = [0, 1].map(|i| keys[i].sign_multisig(&pks[i], msg));
+    let v3 = [0, 1].map(|i| keys[i].sign_multisig_v3(&pks[i], msg));
+    apk.verify(&v2[0].aggregate(&v2[1..]), msg).unwrap();
+    apk.verify_v3(&v3[0].aggregate(&v3[1..]), msg).unwrap();
+    for (first, second) in [(v2[0], v3[1]), (v3[0], v2[1])] {
+        let mixed = first.aggregate(&[second]);
+        assert!(apk.verify(&mixed, msg).is_err());
+        assert!(apk.verify_v3(&mixed, msg).is_err());
+    }
 }
 
 #[test]
@@ -160,6 +253,7 @@ fn insecure_legacy_vectors_remain_valid() {
         .expect("legacy vector signature should deserialize");
     assert!(pk.verify_insecure(&sig, &msg).is_ok());
     assert!(pk.verify(&sig, &msg).is_err());
+    assert!(pk.verify_v3(&sig, &msg).is_err());
 
     let pk1 = PublicKey::from_bytes(&MULTI_PK1)
         .expect("legacy vector multisig key 1 should deserialize");
@@ -175,6 +269,9 @@ fn insecure_legacy_vectors_remain_valid() {
         .expect("legacy vector multisig signature should deserialize");
     assert!(agg.verify_insecure(&ms_sig, &msg).is_ok());
     assert!(agg.verify(&ms_sig, &msg).is_err());
+    assert!(agg.verify_v3(&ms_sig, &msg).is_err());
+    let v3_agg = MultisigPublicKey::aggregate(&[pk1, pk2]).unwrap();
+    assert!(v3_agg.verify_v3(&ms_sig, &msg).is_err());
 }
 
 #[test]

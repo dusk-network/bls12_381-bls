@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::hash::{h0, h1};
+use crate::hash::{h0, h0_multisig_v3, h0_single_v3, h1};
 #[cfg(feature = "insecure-v1-signing")]
 use crate::hash::{h0_insecure_point, h1_insecure};
 use crate::{MultisigSignature, PublicKey, Signature};
@@ -104,6 +104,27 @@ impl SecretKey {
         // Multiply point by sk
         let e = h * self.0;
         Signature(e.into())
+    }
+
+    /// Sign with the opt-in V3 single-signature domain.
+    ///
+    /// Does not change [`Self::sign`]. Consumers must select V3 explicitly;
+    /// signatures retain their byte format and do not carry a version tag.
+    pub fn sign_v3(&self, msg: &[u8]) -> Signature {
+        Signature((h0_single_v3(msg) * self.0).into())
+    }
+
+    /// Sign with the opt-in V3 multisignature domain.
+    ///
+    /// Uses the existing V2 key coefficients/aggregation but a separate
+    /// message domain. Requires V3 verification; never activate implicitly
+    /// for historical consensus messages.
+    pub fn sign_multisig_v3(
+        &self,
+        pk: &PublicKey,
+        msg: &[u8],
+    ) -> MultisigSignature {
+        MultisigSignature((h0_multisig_v3(msg) * (self.0 * h1(pk))).into())
     }
 
     /// Sign a message using the insecure v1 single-signature scheme.

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add opt-in prototype V3 single/multisignature domains without changing V1/V2 defaults or encodings.
+
 ### Changed
 
 - Update `bs58` to 0.5 and Criterion to 0.8 [#46]

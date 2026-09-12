@@ -4,7 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::hash::{h0, h0_insecure_point, h1, h1_insecure};
+use crate::hash::{
+    h0, h0_insecure_point, h0_multisig_v3, h0_single_v3, h1, h1_insecure,
+};
 use crate::signatures::is_valid as is_valid_sig;
 use crate::{Error, MultisigSignature, SecretKey, Signature};
 
@@ -55,7 +57,15 @@ impl From<&SecretKey> for PublicKey {
 impl PublicKey {
     /// Verify a [`Signature`] using the default behavior.
     pub fn verify(&self, sig: &Signature, msg: &[u8]) -> Result<(), Error> {
-        verify_signature(&self.0, &sig.0, msg)
+        verify_with_hash(&self.0, &sig.0, msg, h0)
+    }
+
+    /// Verify only the opt-in V3 single-signature domain.
+    ///
+    /// No V1/V2 fallback is attempted. Version selection must come from the
+    /// authenticated protocol/fork context, not from untrusted signature bytes.
+    pub fn verify_v3(&self, sig: &Signature, msg: &[u8]) -> Result<(), Error> {
+        verify_with_hash(&self.0, &sig.0, msg, h0_single_v3)
     }
 
     /// Verify a [`Signature`] using the insecure v1 behavior.
@@ -151,15 +161,16 @@ fn verify_insecure_signature(
     }
 }
 
-fn verify_signature(
+fn verify_with_hash(
     key: &G2Affine,
     sig: &G1Affine,
     msg: &[u8],
+    hash: fn(&[u8]) -> G1Affine,
 ) -> Result<(), Error> {
     if !is_valid(key) || !is_valid_sig(sig) {
         return Err(Error::InvalidPoint);
     }
-    let h0m = h0(msg);
+    let h0m = hash(msg);
     // e(sig, g2) == e(H(msg), pk) rewritten as
     // e(sig, g2) * e(-H(msg), pk) == 1 in one multi-miller loop.
     let p = dusk_bls12_381::multi_miller_loop(&[
@@ -297,7 +308,19 @@ impl MultisigPublicKey {
         sig: &MultisigSignature,
         msg: &[u8],
     ) -> Result<(), Error> {
-        verify_signature(&self.0, &sig.0, msg)
+        verify_with_hash(&self.0, &sig.0, msg, h0)
+    }
+
+    /// Verify only the opt-in V3 multisignature domain.
+    ///
+    /// Construct this key with [`Self::aggregate`] (the unchanged V2 key
+    /// coefficients). No historical-domain fallback is attempted.
+    pub fn verify_v3(
+        &self,
+        sig: &MultisigSignature,
+        msg: &[u8],
+    ) -> Result<(), Error> {
+        verify_with_hash(&self.0, &sig.0, msg, h0_multisig_v3)
     }
 
     /// Verify a [`MultisigSignature`] using the insecure v1 behavior.
