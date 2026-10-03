@@ -7,15 +7,60 @@
 extern crate alloc;
 
 use alloc::format;
-use alloc::string::String;
+use core::fmt;
 
 use dusk_bytes::Serializable;
-use serde::de::Error as SerdeError;
+use serde::de::{Error, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
     MultisigPublicKey, MultisigSignature, PublicKey, SecretKey, Signature,
 };
+
+/// Decodes a Base58 string of exactly `N` bytes into `T`.
+///
+/// Longer encodings are rejected before decoding, and decoding writes into a
+/// fixed-size stack buffer.
+fn deserialize_bs58<'de, D, T, const N: usize>(
+    deserializer: D,
+) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Serializable<N>,
+    T::Error: fmt::Debug,
+{
+    struct Bs58<const N: usize>;
+
+    impl<const N: usize> Visitor<'_> for Bs58<N> {
+        type Value = [u8; N];
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            write!(formatter, "a base58 string encoding {N} bytes")
+        }
+
+        fn visit_str<E: Error>(self, value: &str) -> Result<Self::Value, E> {
+            self.visit_bytes(value.as_bytes())
+        }
+
+        fn visit_bytes<E: Error>(self, value: &[u8]) -> Result<Self::Value, E> {
+            // `N` bytes encode to at most `ceil(N * log(256) / log(58))`
+            // characters, and log(256) / log(58) < 1.366.
+            if value.len() > N * 1366 / 1000 + 1 {
+                return Err(E::invalid_length(value.len(), &self));
+            }
+            let mut bytes = [0; N];
+            let len =
+                bs58::decode(value).onto(&mut bytes).map_err(E::custom)?;
+            if len != N {
+                return Err(E::invalid_length(len, &self));
+            }
+            Ok(bytes)
+        }
+    }
+
+    let bytes = deserializer.deserialize_str(Bs58::<N>)?;
+    T::from_bytes(&bytes).map_err(|err| D::Error::custom(format!("{err:?}")))
+}
 
 impl Serialize for PublicKey {
     fn serialize<S: Serializer>(
@@ -31,16 +76,7 @@ impl<'de> Deserialize<'de> for PublicKey {
     fn deserialize<D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        let decoded =
-            bs58::decode(&s).into_vec().map_err(SerdeError::custom)?;
-        let decoded_len = decoded.len();
-        let byte_length_str = format!("{}", Self::SIZE);
-        let bytes: [u8; Self::SIZE] = decoded.try_into().map_err(|_| {
-            SerdeError::invalid_length(decoded_len, &byte_length_str.as_str())
-        })?;
-        PublicKey::from_bytes(&bytes)
-            .map_err(|err| SerdeError::custom(format!("{err:?}")))
+        deserialize_bs58(deserializer)
     }
 }
 
@@ -58,16 +94,7 @@ impl<'de> Deserialize<'de> for MultisigPublicKey {
     fn deserialize<D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        let decoded =
-            bs58::decode(&s).into_vec().map_err(SerdeError::custom)?;
-        let decoded_len = decoded.len();
-        let byte_length_str = format!("{}", Self::SIZE);
-        let bytes: [u8; Self::SIZE] = decoded.try_into().map_err(|_| {
-            SerdeError::invalid_length(decoded_len, &byte_length_str.as_str())
-        })?;
-        MultisigPublicKey::from_bytes(&bytes)
-            .map_err(|err| SerdeError::custom(format!("{err:?}")))
+        deserialize_bs58(deserializer)
     }
 }
 
@@ -85,16 +112,7 @@ impl<'de> Deserialize<'de> for Signature {
     fn deserialize<D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        let decoded =
-            bs58::decode(&s).into_vec().map_err(SerdeError::custom)?;
-        let decoded_len = decoded.len();
-        let byte_length_str = format!("{}", Self::SIZE);
-        let bytes: [u8; Self::SIZE] = decoded.try_into().map_err(|_| {
-            SerdeError::invalid_length(decoded_len, &byte_length_str.as_str())
-        })?;
-        Signature::from_bytes(&bytes)
-            .map_err(|err| SerdeError::custom(format!("{err:?}")))
+        deserialize_bs58(deserializer)
     }
 }
 
@@ -112,16 +130,7 @@ impl<'de> Deserialize<'de> for MultisigSignature {
     fn deserialize<D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        let decoded =
-            bs58::decode(&s).into_vec().map_err(SerdeError::custom)?;
-        let decoded_len = decoded.len();
-        let byte_length_str = format!("{}", Self::SIZE);
-        let bytes: [u8; Self::SIZE] = decoded.try_into().map_err(|_| {
-            SerdeError::invalid_length(decoded_len, &byte_length_str.as_str())
-        })?;
-        MultisigSignature::from_bytes(&bytes)
-            .map_err(|err| SerdeError::custom(format!("{err:?}")))
+        deserialize_bs58(deserializer)
     }
 }
 
@@ -139,15 +148,6 @@ impl<'de> Deserialize<'de> for SecretKey {
     fn deserialize<D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        let decoded =
-            bs58::decode(&s).into_vec().map_err(SerdeError::custom)?;
-        let decoded_len = decoded.len();
-        let byte_length_str = format!("{}", Self::SIZE);
-        let bytes: [u8; Self::SIZE] = decoded.try_into().map_err(|_| {
-            SerdeError::invalid_length(decoded_len, &byte_length_str.as_str())
-        })?;
-        SecretKey::from_bytes(&bytes)
-            .map_err(|err| SerdeError::custom(format!("{err:?}")))
+        deserialize_bs58(deserializer)
     }
 }

@@ -12,6 +12,62 @@ use bls12_381_bls::{
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
+use serde::de::value::{BorrowedStrDeserializer, Error};
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::cell::Cell;
+use std::fmt::Debug;
+
+thread_local! {
+    static ALLOCATED_BYTES: Cell<Option<usize>> = const { Cell::new(None) };
+}
+
+struct Allocator;
+
+fn record(size: usize) {
+    let _ = ALLOCATED_BYTES.try_with(|allocated| {
+        if let Some(previous) = allocated.get() {
+            allocated.set(Some(previous.saturating_add(size)));
+        }
+    });
+}
+
+unsafe impl GlobalAlloc for Allocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        record(layout.size());
+        unsafe { System.alloc(layout) }
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        unsafe { System.dealloc(ptr, layout) }
+    }
+}
+
+#[global_allocator]
+static ALLOCATOR: Allocator = Allocator;
+
+/// Deserializes borrowed input, returning the bytes allocated meanwhile.
+fn decode<T: DeserializeOwned>(input: &str) -> (Result<T, Error>, usize) {
+    ALLOCATED_BYTES.set(Some(0));
+    let result = T::deserialize(BorrowedStrDeserializer::<Error>::new(input));
+    // Stop recording before error formatting or result disposal.
+    (result, ALLOCATED_BYTES.replace(None).unwrap())
+}
+
+fn check_bounded<T: DeserializeOwned + Serialize + Debug + PartialEq>(
+    value: T,
+) {
+    let json = serde_json::to_string(&value).unwrap();
+    let (decoded, allocated) = decode::<T>(&json[1..json.len() - 1]);
+    assert_eq!(decoded.unwrap(), value);
+    assert_eq!(allocated, 0, "valid borrowed input must not allocate");
+
+    for oversized in ["1".repeat(1 << 20), "z".repeat(1 << 16)] {
+        let (decoded, allocated) = decode::<T>(&oversized);
+        assert!(decoded.is_err());
+        assert!(allocated < 1024, "oversized input was copied or decoded");
+    }
+}
 
 fn assert_canonical_json<T>(
     input: &T,
@@ -166,4 +222,17 @@ fn serde_too_short_encoded() {
     let multisig_signature: Result<MultisigSignature, _> =
         serde_json::from_str(&length_47_enc);
     assert!(multisig_signature.is_err());
+}
+
+#[test]
+fn serde_decoding_is_bounded() {
+    let mut rng = StdRng::seed_from_u64(0xbeef);
+    let sk = SecretKey::random(&mut rng);
+    let pk = PublicKey::from(&sk);
+
+    check_bounded(MultisigPublicKey::aggregate(&[pk]).unwrap());
+    check_bounded(sk.sign_multisig(&pk, b"a message"));
+    check_bounded(sk.sign(b"a message"));
+    check_bounded(pk);
+    check_bounded(sk);
 }
