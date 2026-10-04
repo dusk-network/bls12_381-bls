@@ -12,6 +12,81 @@ use bls12_381_bls::{
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
+use serde::de::value::{BorrowedStrDeserializer, Error};
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::cell::Cell;
+use std::fmt::Debug;
+
+thread_local! {
+    static ALLOCATED_BYTES: Cell<Option<usize>> = const { Cell::new(None) };
+}
+
+struct Allocator;
+
+fn record(size: usize) {
+    let _ = ALLOCATED_BYTES.try_with(|allocated| {
+        if let Some(previous) = allocated.get() {
+            allocated.set(Some(previous.saturating_add(size)));
+        }
+    });
+}
+
+unsafe impl GlobalAlloc for Allocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        record(layout.size());
+        unsafe { System.alloc(layout) }
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        unsafe { System.dealloc(ptr, layout) }
+    }
+}
+
+#[global_allocator]
+static ALLOCATOR: Allocator = Allocator;
+
+/// Deserializes borrowed input, returning the bytes allocated meanwhile.
+fn decode<T: DeserializeOwned>(input: &str) -> (Result<T, Error>, usize) {
+    ALLOCATED_BYTES.set(Some(0));
+    let result = T::deserialize(BorrowedStrDeserializer::<Error>::new(input));
+    // Stop recording before the result is dropped. Errors format their
+    // message inside `deserialize`, so a rejection may allocate a little.
+    (result, ALLOCATED_BYTES.replace(None).unwrap())
+}
+
+fn encoded<T: Serialize>(value: &T) -> String {
+    serde_json::to_string(value)
+        .unwrap()
+        .trim_matches('"')
+        .to_string()
+}
+
+/// Checks a `value` whose encoding is exactly at the length `bound`.
+fn check_bounded<T: DeserializeOwned + Serialize + Debug + PartialEq>(
+    value: T,
+    bound: usize,
+) {
+    let encoded = encoded(&value);
+    assert_eq!(encoded.len(), bound);
+    let (decoded, allocated) = decode::<T>(&encoded);
+    assert_eq!(decoded.unwrap(), value);
+    assert_eq!(allocated, 0, "valid borrowed input must not allocate");
+
+    // Not Base58: only the length check reports it as over-long.
+    let (decoded, _) = decode::<T>(&"0".repeat(bound + 1));
+    assert!(decoded.unwrap_err().to_string().contains("over-long"));
+    // Within the bound but decoding to more than `N` bytes: only the decoder
+    // reports it as over-long.
+    let (decoded, _) = decode::<T>(&"z".repeat(bound));
+    assert!(decoded.unwrap_err().to_string().contains("over-long"));
+
+    for oversized in ["1".repeat(1 << 20), "z".repeat(1 << 16)] {
+        let (decoded, allocated) = decode::<T>(&oversized);
+        assert!(decoded.is_err());
+        assert!(allocated < 1024, "oversized input was copied or decoded");
+    }
+}
 
 fn assert_canonical_json<T>(
     input: &T,
@@ -166,4 +241,26 @@ fn serde_too_short_encoded() {
     let multisig_signature: Result<MultisigSignature, _> =
         serde_json::from_str(&length_47_enc);
     assert!(multisig_signature.is_err());
+}
+
+#[test]
+fn serde_decoding_is_bounded() {
+    let mut rng = StdRng::seed_from_u64(0xbeef);
+    let mut keys = std::iter::repeat_with(|| SecretKey::random(&mut rng));
+    // About a third of public keys encode to the full 132 characters.
+    let sk = keys
+        .find(|sk| encoded(&PublicKey::from(sk)).len() == 132)
+        .unwrap();
+    let pk = PublicKey::from(&sk);
+    let apk = keys
+        .map(|sk| MultisigPublicKey::aggregate(&[PublicKey::from(&sk)]))
+        .find(|apk| encoded(apk.as_ref().unwrap()).len() == 132)
+        .unwrap()
+        .unwrap();
+
+    check_bounded(apk, 132);
+    check_bounded(sk.sign_multisig(&pk, b"a message"), 66);
+    check_bounded(sk.sign(b"a message"), 66);
+    check_bounded(pk, 132);
+    check_bounded(sk, 44);
 }

@@ -9,8 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Report over-long Serde Base58 strings as an invalid value, and short ones as
+  an invalid length in bytes [#48]
 - Update `bs58` to 0.5 and Criterion to 0.8 [#46]
 - Raise the MSRV to Rust 1.96.1 [#44]
+
+### Fixed
+
+- Reject over-long Serde Base58 strings before decoding [#48]
 
 ## [0.6.0] - 2026-02-27
 
@@ -108,6 +114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-bls12_381-sign](https://github.com/dusk-network/bls12_381-sign/) at version `0.6.0` under the new name: `bls12_381-bls` and without the go related code.
 
 <!-- ISSUES -->
+[#48]: https://github.com/dusk-network/bls12_381-bls/issues/48
 [#46]: https://github.com/dusk-network/bls12_381-bls/issues/46
 [#44]: https://github.com/dusk-network/bls12_381-bls/issues/44
 [#3596]: https://github.com/dusk-network/rusk/issues/3596
