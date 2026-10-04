@@ -76,6 +76,10 @@ fn check_bounded<T: DeserializeOwned + Serialize + Debug + PartialEq>(
     // Not Base58: only the length check reports it as over-long.
     let (decoded, _) = decode::<T>(&"0".repeat(bound + 1));
     assert!(decoded.unwrap_err().to_string().contains("over-long"));
+    // Within the bound but decoding to more than `N` bytes: only the decoder
+    // reports it as over-long.
+    let (decoded, _) = decode::<T>(&"z".repeat(bound));
+    assert!(decoded.unwrap_err().to_string().contains("over-long"));
 
     for oversized in ["1".repeat(1 << 20), "z".repeat(1 << 16)] {
         let (decoded, allocated) = decode::<T>(&oversized);
