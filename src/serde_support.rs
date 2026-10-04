@@ -10,17 +10,21 @@ use alloc::format;
 use core::fmt;
 
 use dusk_bytes::Serializable;
-use serde::de::{Error, Visitor};
+use serde::de::{Error, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+use zeroize::Zeroize;
 
 use crate::{
     MultisigPublicKey, MultisigSignature, PublicKey, SecretKey, Signature,
 };
 
+const OVER_LONG: Unexpected = Unexpected::Other("over-long base58 string");
+
 /// Decodes a Base58 string of exactly `N` bytes into `T`.
 ///
 /// Longer encodings are rejected before decoding, and decoding writes into a
-/// fixed-size stack buffer.
+/// fixed-size buffer that is wiped before returning.
 fn deserialize_bs58<'de, D, T, const N: usize>(
     deserializer: D,
 ) -> Result<T, D::Error>
@@ -29,10 +33,10 @@ where
     T: Serializable<N>,
     T::Error: fmt::Debug,
 {
-    struct Bs58<const N: usize>;
+    struct Bs58<'a, const N: usize>(&'a mut [u8; N]);
 
-    impl<const N: usize> Visitor<'_> for Bs58<N> {
-        type Value = [u8; N];
+    impl<const N: usize> Visitor<'_> for Bs58<'_, N> {
+        type Value = ();
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
             write!(formatter, "a base58 string encoding {N} bytes")
@@ -46,20 +50,28 @@ where
             // `N` bytes encode to at most `ceil(N * log(256) / log(58))`
             // characters, and log(256) / log(58) < 1.366.
             if value.len() > N * 1366 / 1000 + 1 {
-                return Err(E::invalid_length(value.len(), &self));
+                return Err(E::invalid_value(OVER_LONG, &self));
             }
-            let mut bytes = [0; N];
-            let len =
-                bs58::decode(value).onto(&mut bytes).map_err(E::custom)?;
-            if len != N {
-                return Err(E::invalid_length(len, &self));
+            match bs58::decode(value).onto(&mut self.0[..]) {
+                Ok(len) if len == N => Ok(()),
+                Ok(len) => Err(E::invalid_length(len, &self)),
+                Err(bs58::decode::Error::BufferTooSmall) => {
+                    Err(E::invalid_value(OVER_LONG, &self))
+                }
+                Err(err) => Err(E::custom(err)),
             }
-            Ok(bytes)
         }
     }
 
-    let bytes = deserializer.deserialize_str(Bs58::<N>)?;
-    T::from_bytes(&bytes).map_err(|err| D::Error::custom(format!("{err:?}")))
+    let mut bytes = [0; N];
+    let value = deserializer
+        .deserialize_str(Bs58(&mut bytes))
+        .and_then(|()| {
+            T::from_bytes(&bytes)
+                .map_err(|err| D::Error::custom(format!("{err:?}")))
+        });
+    bytes.zeroize();
+    value
 }
 
 impl Serialize for PublicKey {

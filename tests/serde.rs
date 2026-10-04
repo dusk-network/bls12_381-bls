@@ -50,17 +50,32 @@ static ALLOCATOR: Allocator = Allocator;
 fn decode<T: DeserializeOwned>(input: &str) -> (Result<T, Error>, usize) {
     ALLOCATED_BYTES.set(Some(0));
     let result = T::deserialize(BorrowedStrDeserializer::<Error>::new(input));
-    // Stop recording before error formatting or result disposal.
+    // Stop recording before the result is dropped. Errors format their
+    // message inside `deserialize`, so a rejection may allocate a little.
     (result, ALLOCATED_BYTES.replace(None).unwrap())
 }
 
+fn encoded<T: Serialize>(value: &T) -> String {
+    serde_json::to_string(value)
+        .unwrap()
+        .trim_matches('"')
+        .to_string()
+}
+
+/// Checks a `value` whose encoding is exactly at the length `bound`.
 fn check_bounded<T: DeserializeOwned + Serialize + Debug + PartialEq>(
     value: T,
+    bound: usize,
 ) {
-    let json = serde_json::to_string(&value).unwrap();
-    let (decoded, allocated) = decode::<T>(&json[1..json.len() - 1]);
+    let encoded = encoded(&value);
+    assert_eq!(encoded.len(), bound);
+    let (decoded, allocated) = decode::<T>(&encoded);
     assert_eq!(decoded.unwrap(), value);
     assert_eq!(allocated, 0, "valid borrowed input must not allocate");
+
+    // Not Base58: only the length check reports it as over-long.
+    let (decoded, _) = decode::<T>(&"0".repeat(bound + 1));
+    assert!(decoded.unwrap_err().to_string().contains("over-long"));
 
     for oversized in ["1".repeat(1 << 20), "z".repeat(1 << 16)] {
         let (decoded, allocated) = decode::<T>(&oversized);
@@ -227,12 +242,21 @@ fn serde_too_short_encoded() {
 #[test]
 fn serde_decoding_is_bounded() {
     let mut rng = StdRng::seed_from_u64(0xbeef);
-    let sk = SecretKey::random(&mut rng);
+    let mut keys = std::iter::repeat_with(|| SecretKey::random(&mut rng));
+    // About a third of public keys encode to the full 132 characters.
+    let sk = keys
+        .find(|sk| encoded(&PublicKey::from(sk)).len() == 132)
+        .unwrap();
     let pk = PublicKey::from(&sk);
+    let apk = keys
+        .map(|sk| MultisigPublicKey::aggregate(&[PublicKey::from(&sk)]))
+        .find(|apk| encoded(apk.as_ref().unwrap()).len() == 132)
+        .unwrap()
+        .unwrap();
 
-    check_bounded(MultisigPublicKey::aggregate(&[pk]).unwrap());
-    check_bounded(sk.sign_multisig(&pk, b"a message"));
-    check_bounded(sk.sign(b"a message"));
-    check_bounded(pk);
-    check_bounded(sk);
+    check_bounded(apk, 132);
+    check_bounded(sk.sign_multisig(&pk, b"a message"), 66);
+    check_bounded(sk.sign(b"a message"), 66);
+    check_bounded(pk, 132);
+    check_bounded(sk, 44);
 }
