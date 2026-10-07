@@ -215,9 +215,9 @@ fn insecure_linear_forgery_is_rejected_by_secure_verifier() {
     let sig1 = sk.sign_insecure(&msg1);
     let sig2 = sk.sign_insecure(&msg2);
 
-    let h1 = BlsScalar::hash_to_scalar(&msg1);
+    let h1 = BlsScalar::hash_to_scalar(None, &msg1);
     let h2 = nonzero_hash(&msg2);
-    let h3 = BlsScalar::hash_to_scalar(&msg3);
+    let h3 = BlsScalar::hash_to_scalar(None, &msg3);
 
     // Choose a = 1 and solve b such that h1 + b*h2 = h3 (mod r).
     let b = (h3 - h1) * h2.invert().expect("non-zero scalar must invert");
@@ -253,7 +253,7 @@ fn signature_from_projective(p: G1Projective) -> Signature {
 
 #[cfg(feature = "insecure-v1-signing")]
 fn nonzero_hash(msg: &[u8]) -> BlsScalar {
-    let mut h = BlsScalar::hash_to_scalar(msg);
+    let mut h = BlsScalar::hash_to_scalar(None, msg);
     if h.is_zero().into() {
         h = BlsScalar::one();
     }

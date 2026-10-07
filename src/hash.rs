@@ -20,7 +20,7 @@ const H1_DST: &[u8] = b"BLS_SIG_BLS12381_SCALAR_SHA256_DUSK_H1_V2";
 #[inline]
 fn h0_insecure(msg: &[u8]) -> G1Affine {
     // Insecure v1 map used by historical blocks/transactions.
-    (G1Affine::generator() * BlsScalar::hash_to_scalar(msg)).into()
+    (G1Affine::generator() * BlsScalar::hash_to_scalar(None, msg)).into()
 }
 
 /// Hash-to-curve-point function for the secure path.
@@ -39,7 +39,7 @@ pub fn h0_insecure_point(msg: &[u8]) -> G1Affine {
 
 /// Insecure v1 function used for multisig coefficients.
 pub fn h1_insecure(pk: &PublicKey) -> BlsScalar {
-    BlsScalar::hash_to_scalar(&pk.to_bytes())
+    BlsScalar::hash_to_scalar(None, &pk.to_bytes())
 }
 
 /// Scalar function used for multisig coefficients on the secure path.
@@ -48,5 +48,5 @@ pub fn h1(pk: &PublicKey) -> BlsScalar {
         [0u8; H1_DST.len() + <PublicKey as Serializable<96>>::SIZE];
     material[..H1_DST.len()].copy_from_slice(H1_DST);
     material[H1_DST.len()..].copy_from_slice(&pk.to_bytes());
-    BlsScalar::hash_to_scalar(&material)
+    BlsScalar::hash_to_scalar(None, &material)
 }

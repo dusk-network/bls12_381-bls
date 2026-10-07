@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Update `dusk-bls12_381` to `0.16` [#52]
 - Redact secret scalar material from `SecretKey` debug output [#50]
 - Report over-long Serde Base58 strings as an invalid value, and short ones as
   an invalid length in bytes [#48]
@@ -115,6 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-bls12_381-sign](https://github.com/dusk-network/bls12_381-sign/) at version `0.6.0` under the new name: `bls12_381-bls` and without the go related code.
 
 <!-- ISSUES -->
+[#52]: https://github.com/dusk-network/bls12_381-bls/issues/52
 [#50]: https://github.com/dusk-network/bls12_381-bls/issues/50
 [#48]: https://github.com/dusk-network/bls12_381-bls/issues/48
 [#46]: https://github.com/dusk-network/bls12_381-bls/issues/46
