@@ -9,6 +9,8 @@ use crate::hash::{h0, h1};
 use crate::hash::{h0_insecure_point, h1_insecure};
 use crate::{MultisigSignature, PublicKey, Signature};
 
+use core::fmt;
+
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{Error as DuskBytesError, Serializable};
 use ff::Field;
@@ -43,13 +45,19 @@ use rkyv::{Archive, Deserialize, Serialize};
 ///
 /// sk.zeroize();
 /// ```
-#[derive(Default, Clone, Debug, Eq, PartialEq, Zeroize)]
+#[derive(Default, Clone, Eq, PartialEq, Zeroize)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
     archive_attr(derive(bytecheck::CheckBytes))
 )]
 pub struct SecretKey(pub(crate) BlsScalar);
+
+impl fmt::Debug for SecretKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("SecretKey(REDACTED)")
+    }
+}
 
 impl From<BlsScalar> for SecretKey {
     fn from(s: BlsScalar) -> SecretKey {
