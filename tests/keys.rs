@@ -21,6 +21,16 @@ fn sk_zeroize() {
 }
 
 #[test]
+fn debug_redacts_secret_key() {
+    let sk = SecretKey::from(BlsScalar::from(42));
+    let secret_material = format!("{:?}", BlsScalar::from(42));
+
+    let sk_debug = format!("{sk:?}");
+    assert_eq!(sk_debug, "SecretKey(REDACTED)");
+    assert!(!sk_debug.contains(&secret_material));
+}
+
+#[test]
 fn keys_encoding() {
     let mut rng = StdRng::seed_from_u64(0xbeef);
     let sk = SecretKey::random(&mut rng);
