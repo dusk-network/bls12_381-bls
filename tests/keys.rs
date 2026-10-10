@@ -21,6 +21,14 @@ fn sk_zeroize() {
 }
 
 #[test]
+fn sk_from_scalar() {
+    let secret = BlsScalar::from(42);
+
+    assert_eq!(SecretKey::from(secret).as_ref(), &secret);
+    assert_eq!(SecretKey::from(&secret).as_ref(), &secret);
+}
+
+#[test]
 fn debug_redacts_secret_key() {
     let sk = SecretKey::from(BlsScalar::from(42));
     let secret_material = format!("{:?}", BlsScalar::from(42));
@@ -44,6 +52,21 @@ fn keys_encoding() {
         mspk,
         MultisigPublicKey::from_bytes(&mspk.to_bytes()).unwrap()
     );
+}
+
+#[test]
+fn keys_raw_encoding() {
+    let mut rng = StdRng::seed_from_u64(0xfeed);
+    let pk = PublicKey::from(&SecretKey::random(&mut rng));
+    let mspk = MultisigPublicKey::aggregate(&[pk])
+        .expect("Aggregating should succeed");
+
+    let raw = pk.to_raw_bytes();
+    assert_eq!(pk, unsafe { PublicKey::from_slice_unchecked(&raw) });
+    let raw = mspk.to_raw_bytes();
+    assert_eq!(mspk, unsafe {
+        MultisigPublicKey::from_slice_unchecked(&raw)
+    });
 }
 
 #[test]
