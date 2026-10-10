@@ -5,7 +5,8 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use bls12_381_bls::{
-    MultisigPublicKey, MultisigSignature, PublicKey, SecretKey, Signature,
+    Error, MultisigPublicKey, MultisigSignature, PublicKey, SecretKey,
+    Signature,
 };
 #[cfg(feature = "insecure-v1-signing")]
 use dusk_bls12_381::BlsScalar;
@@ -229,6 +230,116 @@ fn insecure_linear_forgery_is_rejected_by_secure_verifier() {
 
     assert!(pk.verify_insecure(&forged, &msg3).is_ok());
     assert!(pk.verify(&forged, &msg3).is_err());
+}
+
+#[test]
+fn verify_rejects_identity_signatures() {
+    let rng = &mut StdRng::seed_from_u64(0x1d);
+    let msg = random_message(rng);
+
+    let sk = SecretKey::random(rng);
+    let pk = PublicKey::from(&sk);
+    let ms_pk = MultisigPublicKey::aggregate(&[pk])
+        .expect("aggregation should succeed");
+    assert!(sk.sign(&msg).is_valid());
+    assert!(sk.sign_multisig(&pk, &msg).is_valid());
+
+    // the default signatures hold the identity
+    let sig = Signature::default();
+    let ms_sig = MultisigSignature::default();
+    assert!(!sig.is_valid());
+    assert!(!ms_sig.is_valid());
+
+    assert_eq!(pk.verify(&sig, &msg), Err(Error::InvalidPoint));
+    assert_eq!(pk.verify_insecure(&sig, &msg), Err(Error::InvalidPoint));
+    assert_eq!(ms_pk.verify(&ms_sig, &msg), Err(Error::InvalidPoint));
+    assert_eq!(
+        ms_pk.verify_insecure(&ms_sig, &msg),
+        Err(Error::InvalidPoint)
+    );
+}
+
+#[test]
+fn verify_rejects_identity_keys() {
+    let rng = &mut StdRng::seed_from_u64(0x1e);
+    let msg = random_message(rng);
+
+    let sk = SecretKey::random(rng);
+    let pk = PublicKey::from(&sk);
+    let sig = sk.sign(&msg);
+    let ms_sig = sk.sign_multisig(&pk, &msg);
+
+    // the default keys hold the identity
+    let pk = PublicKey::default();
+    let ms_pk = MultisigPublicKey::default();
+    assert_eq!(pk.verify(&sig, &msg), Err(Error::InvalidPoint));
+    assert_eq!(pk.verify_insecure(&sig, &msg), Err(Error::InvalidPoint));
+    assert_eq!(ms_pk.verify(&ms_sig, &msg), Err(Error::InvalidPoint));
+    assert_eq!(
+        ms_pk.verify_insecure(&ms_sig, &msg),
+        Err(Error::InvalidPoint)
+    );
+}
+
+/// `from_bytes` rejects points outside the prime-order subgroup, but an
+/// archive carries its point as is, so verification has to reject it.
+#[test]
+#[cfg(feature = "rkyv-impl")]
+fn verify_rejects_archived_signatures_outside_the_subgroup() {
+    use dusk_bls12_381::G1Affine;
+    use rkyv::{Deserialize, Infallible};
+
+    let rng = &mut StdRng::seed_from_u64(0x1f);
+    let msg = random_message(rng);
+
+    let sk = SecretKey::random(rng);
+    let pk = PublicKey::from(&sk);
+    let ms_pk = MultisigPublicKey::aggregate(&[pk])
+        .expect("aggregation should succeed");
+    let sig = sk.sign(&msg);
+    let ms_sig = sk.sign_multisig(&pk, &msg);
+
+    // an archived signature is its archived point
+    let point = G1Affine::from_bytes(&sig.to_bytes()).unwrap();
+    assert_eq!(
+        rkyv::to_bytes::<_, 256>(&sig).unwrap().as_slice(),
+        rkyv::to_bytes::<_, 256>(&point).unwrap().as_slice(),
+    );
+    let point = G1Affine::from_bytes(&ms_sig.to_bytes()).unwrap();
+    assert_eq!(
+        rkyv::to_bytes::<_, 256>(&ms_sig).unwrap().as_slice(),
+        rkyv::to_bytes::<_, 256>(&point).unwrap().as_slice(),
+    );
+
+    // `(0, 2)` is on the curve, but not in the prime-order subgroup
+    let mut compressed = [0u8; 48];
+    compressed[0] = 0x80;
+    let point = G1Affine::from_compressed_unchecked(&compressed).unwrap();
+    assert!(bool::from(point.is_on_curve()));
+    assert!(!bool::from(point.is_torsion_free()));
+    assert!(Signature::from_bytes(&point.to_bytes()).is_err());
+
+    let archive = rkyv::to_bytes::<_, 256>(&point).unwrap();
+    // SAFETY: the archive holds an archived point, which is the archive of a
+    // signature, as asserted above
+    let sig: Signature = unsafe { rkyv::archived_root::<Signature>(&archive) }
+        .deserialize(&mut Infallible)
+        .unwrap();
+    // SAFETY: as above
+    let ms_sig: MultisigSignature =
+        unsafe { rkyv::archived_root::<MultisigSignature>(&archive) }
+            .deserialize(&mut Infallible)
+            .unwrap();
+    assert!(!sig.is_valid());
+    assert!(!ms_sig.is_valid());
+
+    assert_eq!(pk.verify(&sig, &msg), Err(Error::InvalidPoint));
+    assert_eq!(pk.verify_insecure(&sig, &msg), Err(Error::InvalidPoint));
+    assert_eq!(ms_pk.verify(&ms_sig, &msg), Err(Error::InvalidPoint));
+    assert_eq!(
+        ms_pk.verify_insecure(&ms_sig, &msg),
+        Err(Error::InvalidPoint)
+    );
 }
 
 fn random_message(rng: &mut StdRng) -> [u8; 100] {
