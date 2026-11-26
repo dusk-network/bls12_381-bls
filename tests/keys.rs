@@ -145,3 +145,54 @@ fn apk_insecure_invalid_point_fails() {
         Error::InvalidPoint
     );
 }
+
+#[test]
+fn sk_from_bytes_rejects_zero() {
+    assert_eq!(
+        SecretKey::from_bytes(&[0u8; SecretKey::SIZE]).unwrap_err(),
+        dusk_bytes::Error::InvalidData
+    );
+}
+
+#[test]
+fn sk_random_skips_zero() {
+    use rand::RngCore;
+
+    struct ZeroThenNonZero(usize);
+
+    impl RngCore for ZeroThenNonZero {
+        fn next_u32(&mut self) -> u32 {
+            self.next_u64() as u32
+        }
+
+        fn next_u64(&mut self) -> u64 {
+            let mut buf = [0u8; 8];
+            self.fill_bytes(&mut buf);
+            u64::from_le_bytes(buf)
+        }
+
+        fn fill_bytes(&mut self, dest: &mut [u8]) {
+            if self.0 < 64 {
+                dest.fill(0);
+                self.0 += dest.len();
+            } else {
+                dest.fill(1);
+                self.0 += dest.len();
+            }
+        }
+
+        fn try_fill_bytes(
+            &mut self,
+            dest: &mut [u8],
+        ) -> Result<(), rand::Error> {
+            self.fill_bytes(dest);
+            Ok(())
+        }
+    }
+
+    impl rand::CryptoRng for ZeroThenNonZero {}
+
+    let mut rng = ZeroThenNonZero(0);
+    let sk = SecretKey::random(&mut rng);
+    assert_ne!(*sk.as_ref(), BlsScalar::zero());
+}

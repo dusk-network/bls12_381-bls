@@ -78,12 +78,17 @@ impl AsRef<BlsScalar> for SecretKey {
 }
 
 impl SecretKey {
-    /// Generates a new random [`SecretKey`] from a [`BlsScalar].
+    /// Generates a new non-zero random [`SecretKey`] from a [`BlsScalar`].
     pub fn random<T>(rand: &mut T) -> Self
     where
         T: RngCore + CryptoRng,
     {
-        Self(BlsScalar::random(&mut *rand))
+        loop {
+            let scalar = BlsScalar::random(&mut *rand);
+            if scalar != BlsScalar::zero() {
+                return Self(scalar);
+            }
+        }
     }
 }
 
@@ -96,8 +101,8 @@ impl Serializable<32> for SecretKey {
 
     fn from_bytes(bytes: &[u8; Self::SIZE]) -> Result<Self, Self::Error> {
         let secret_key = match BlsScalar::from_bytes(bytes).into() {
-            Some(sk) => sk,
-            None => return Err(DuskBytesError::InvalidData),
+            Some(sk) if sk != BlsScalar::zero() => sk,
+            _ => return Err(DuskBytesError::InvalidData),
         };
         Ok(Self(secret_key))
     }

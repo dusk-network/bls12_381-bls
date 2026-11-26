@@ -264,3 +264,10 @@ fn serde_decoding_is_bounded() {
     check_bounded(pk, 132);
     check_bounded(sk, 44);
 }
+
+#[test]
+fn serde_rejects_zero_secret_key() {
+    let zero_b58 = bs58::encode([0u8; 32]).into_string();
+    let json = format!("\"{zero_b58}\"");
+    assert!(serde_json::from_str::<SecretKey>(&json).is_err());
+}
