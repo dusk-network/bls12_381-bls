@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Wipe temporary raw and Base58 buffers in Serde `Serialize` implementations
+  [#58]
+
+### Fixed
+
+- Reject zero secret keys in `SecretKey::random` and `SecretKey::from_bytes`
+  [#58]
+
 ## [0.7.0] - 2026-10-07
 
 ### Changed
@@ -118,6 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-bls12_381-sign](https://github.com/dusk-network/bls12_381-sign/) at version `0.6.0` under the new name: `bls12_381-bls` and without the go related code.
 
 <!-- ISSUES -->
+[#58]: https://github.com/dusk-network/bls12_381-bls/issues/58
 [#52]: https://github.com/dusk-network/bls12_381-bls/issues/52
 [#50]: https://github.com/dusk-network/bls12_381-bls/issues/50
 [#48]: https://github.com/dusk-network/bls12_381-bls/issues/48

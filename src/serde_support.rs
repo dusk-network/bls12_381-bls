@@ -21,6 +21,34 @@ use crate::{
 
 const OVER_LONG: Unexpected = Unexpected::Other("over-long base58 string");
 
+/// Maximum Base58 output size across supported types (`PublicKey` and
+/// `MultisigPublicKey` are 96 bytes, which encode to at most 132 characters).
+const MAX_ENCODED_LEN: usize = 136;
+
+/// Encodes `T` as a Base58 string using a stack buffer that is wiped before
+/// returning.
+fn serialize_bs58<T, S, const N: usize>(
+    value: &T,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    T: Serializable<N>,
+    S: Serializer,
+{
+    let mut bytes = value.to_bytes();
+    let mut encoded = [0u8; MAX_ENCODED_LEN];
+    let len = bs58::encode(&bytes)
+        .onto(&mut encoded[..])
+        .expect("stack buffer fits encoded bytes");
+    let result = serializer.serialize_str(
+        core::str::from_utf8(&encoded[..len])
+            .expect("base58 output is valid UTF-8"),
+    );
+    bytes.zeroize();
+    encoded.zeroize();
+    result
+}
+
 /// Decodes a Base58 string of exactly `N` bytes into `T`.
 ///
 /// Longer encodings are rejected before decoding, and decoding writes into a
@@ -79,8 +107,7 @@ impl Serialize for PublicKey {
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let s = bs58::encode(self.to_bytes()).into_string();
-        serializer.serialize_str(&s)
+        serialize_bs58(self, serializer)
     }
 }
 
@@ -97,8 +124,7 @@ impl Serialize for MultisigPublicKey {
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let s = bs58::encode(self.to_bytes()).into_string();
-        serializer.serialize_str(&s)
+        serialize_bs58(self, serializer)
     }
 }
 
@@ -115,8 +141,7 @@ impl Serialize for Signature {
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let s = bs58::encode(self.to_bytes()).into_string();
-        serializer.serialize_str(&s)
+        serialize_bs58(self, serializer)
     }
 }
 
@@ -133,8 +158,7 @@ impl Serialize for MultisigSignature {
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let s = bs58::encode(self.to_bytes()).into_string();
-        serializer.serialize_str(&s)
+        serialize_bs58(self, serializer)
     }
 }
 
@@ -151,8 +175,7 @@ impl Serialize for SecretKey {
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let s = bs58::encode(self.to_bytes()).into_string();
-        serializer.serialize_str(&s)
+        serialize_bs58(self, serializer)
     }
 }
 
